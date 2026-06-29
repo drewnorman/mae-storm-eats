@@ -69,3 +69,5 @@ just build-artifact
 ```
 
 The service boundary, runtime secrets, persistent data, and backup expectations are documented in `docs/service-contract.md`.
+
+App-owned OpenTofu state, when this repository needs it, uses the shared personal state bucket from `infra-state`: `gs://drew-infra-tofu-state` with prefix `recipes/prod`. The backend configuration lives in `tofu/versions.tf`.
