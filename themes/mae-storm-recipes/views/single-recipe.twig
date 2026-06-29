@@ -22,5 +22,67 @@
     <div class="prose prose-slate mt-8 max-w-none">
       {{ post.content }}
     </div>
+
+    <dl class="mt-6 grid gap-3 border-y border-slate-200 py-4 text-sm sm:grid-cols-5">
+      {% if recipe_meta.servings %}
+        <div>
+          <dt class="font-medium text-slate-500">Servings</dt>
+          <dd class="mt-1 text-slate-950">{{ recipe_meta.servings }}</dd>
+        </div>
+      {% endif %}
+      {% if recipe_meta.prep_time %}
+        <div>
+          <dt class="font-medium text-slate-500">Prep</dt>
+          <dd class="mt-1 text-slate-950">{{ recipe_meta.prep_time }} min</dd>
+        </div>
+      {% endif %}
+      {% if recipe_meta.cook_time %}
+        <div>
+          <dt class="font-medium text-slate-500">Cook</dt>
+          <dd class="mt-1 text-slate-950">{{ recipe_meta.cook_time }} min</dd>
+        </div>
+      {% endif %}
+      {% if recipe_meta.total_time %}
+        <div>
+          <dt class="font-medium text-slate-500">Total</dt>
+          <dd class="mt-1 text-slate-950">{{ recipe_meta.total_time }} min</dd>
+        </div>
+      {% endif %}
+      {% if recipe_meta.difficulty %}
+        <div>
+          <dt class="font-medium text-slate-500">Difficulty</dt>
+          <dd class="mt-1 capitalize text-slate-950">{{ recipe_meta.difficulty }}</dd>
+        </div>
+      {% endif %}
+    </dl>
+
+    {% if recipe_data.ingredients %}
+      <section class="mt-8">
+        <h2 class="text-2xl font-semibold text-slate-950">Ingredients</h2>
+        <ul class="mt-4 grid gap-2 text-slate-700">
+          {% for ingredient in recipe_data.ingredients %}
+            <li class="rounded-md border border-slate-200 bg-white px-3 py-2">{{ ingredient }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {% if recipe_data.steps %}
+      <section class="mt-8">
+        <h2 class="text-2xl font-semibold text-slate-950">Steps</h2>
+        <ol class="mt-4 grid gap-3 text-slate-700">
+          {% for step in recipe_data.steps %}
+            <li class="rounded-md border border-slate-200 bg-white p-4">
+              <span class="text-sm font-semibold text-amber-700">Step {{ loop.index }}</span>
+              <p class="mt-2 leading-7">{{ step }}</p>
+            </li>
+          {% endfor %}
+        </ol>
+      </section>
+    {% endif %}
+
+    {% if recipe_schema %}
+      <script type="application/ld+json">{{ recipe_schema|raw }}</script>
+    {% endif %}
   </article>
 {% endblock %}

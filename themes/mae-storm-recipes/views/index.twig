@@ -5,11 +5,12 @@
     <div>
       <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p class="text-sm font-medium text-amber-700">Private kitchen archive</p>
-          <h1 class="mt-1 text-3xl font-semibold text-slate-950">Recipes</h1>
+          {% if recipe_query %}
+            <p class="mt-2 text-sm text-slate-600">Results for "{{ recipe_query }}"</p>
+          {% endif %}
         </div>
 
-        <form class="flex max-w-md gap-2" role="search" method="get" action="{{ site.url }}">
+        <form class="flex w-full max-w-md gap-2 sm:w-auto" role="search" method="get" action="{{ site.url }}">
           <label class="sr-only" for="recipe-search">Search recipes</label>
           <input id="recipe-search" class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-200" type="search" name="s" value="{{ recipe_query }}" placeholder="Search recipes">
           <button class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" type="submit">Search</button>
@@ -18,12 +19,24 @@
 
       <div class="grid gap-3 @container">
         {% for post in posts %}
-          <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300">
-            <a class="block" href="{{ post.link }}">
+          <article class="grid gap-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-amber-300 @lg:grid-cols-[10rem_minmax(0,1fr)]">
+            {% if post.thumbnail %}
+              <a class="block overflow-hidden rounded-md bg-slate-100" href="{{ post.link }}">
+                <img class="aspect-[4/3] h-full w-full object-cover" src="{{ post.thumbnail.src('medium') }}" alt="">
+              </a>
+            {% endif %}
+
+            <a class="block min-w-0 p-1" href="{{ post.link }}">
               <h2 class="text-lg font-semibold text-slate-950">{{ post.title }}</h2>
               {% if post.preview %}
                 <p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{{ post.preview.read_more(false) }}</p>
               {% endif %}
+
+              <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                {% for term in post.terms %}
+                  <span class="rounded border border-slate-200 px-2 py-1">{{ term.name }}</span>
+                {% endfor %}
+              </div>
             </a>
           </article>
         {% else %}
@@ -36,10 +49,19 @@
 
     <aside class="h-fit rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h2 class="text-sm font-semibold text-slate-950">Filters</h2>
-      <div class="mt-4 grid gap-2 text-sm text-slate-600">
-        <button class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-amber-300 hover:bg-amber-50" type="button">Course</button>
-        <button class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-amber-300 hover:bg-amber-50" type="button">Cuisine</button>
-        <button class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-amber-300 hover:bg-amber-50" type="button">Diet</button>
+      <div class="mt-4 grid gap-5 text-sm text-slate-600">
+        {% for filter in recipe_filters %}
+          <section>
+            <h3 class="font-medium text-slate-900">{{ filter.label }}</h3>
+            <div class="mt-2 grid gap-1">
+              {% for term in filter.terms %}
+                <a class="rounded-md border border-slate-200 px-3 py-2 hover:border-amber-300 hover:bg-amber-50" href="{{ function('get_term_link', term) }}">{{ term.name }}</a>
+              {% else %}
+                <span class="text-xs text-slate-400">No terms yet</span>
+              {% endfor %}
+            </div>
+          </section>
+        {% endfor %}
       </div>
     </aside>
   </section>

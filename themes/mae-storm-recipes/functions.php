@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use MaeStorm\Recipes\ContentTypes;
+use MaeStorm\Recipes\RecipeView;
+
 if (!defined('ABSPATH')) {
   exit;
 }
@@ -63,3 +66,31 @@ function mae_storm_recipes_timber_available(): bool
   return class_exists(\Timber\Timber::class);
 }
 
+function mae_storm_recipes_app_ready(): bool
+{
+  return mae_storm_recipes_timber_available() && class_exists(RecipeView::class);
+}
+
+function mae_storm_recipes_render_operational_error(): void
+{
+  get_header();
+  ?>
+  <main class="mae-storm-recipes-fallback">
+    <h1><?php esc_html_e('Mae Storm Recipes is not ready', 'mae-storm-recipes'); ?></h1>
+    <p>
+      <?php esc_html_e('This app requires the Mae Storm Recipes plugin and Timber. Install Composer dependencies and activate the plugin before rendering recipe views.', 'mae-storm-recipes'); ?>
+    </p>
+  </main>
+  <?php
+  get_footer();
+}
+
+add_action('pre_get_posts', function (\WP_Query $query): void {
+  if (is_admin() || !$query->is_main_query()) {
+    return;
+  }
+
+  if ($query->is_home() || $query->is_search()) {
+    $query->set('post_type', [class_exists(ContentTypes::class) ? ContentTypes::POST_TYPE_RECIPE : 'recipe']);
+  }
+});
