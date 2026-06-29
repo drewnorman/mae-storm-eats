@@ -50,5 +50,6 @@ if (is_readable($mae_storm_recipes_autoload)) {
 register_activation_hook(MAE_STORM_RECIPES_FILE, [Activation::class, 'activate']);
 
 add_action('plugins_loaded', static function (): void {
+    Activation::upgrade();
     Plugin::instance()->register();
 });

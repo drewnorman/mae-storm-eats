@@ -21,7 +21,10 @@ final class Plugin
             new CommentsDisabled(),
             new ContentTypes(),
             new RecipeMeta(),
+            new ReviewMeta(),
             new AdminReview(),
+            new AdminBrowserImport(),
+            new BrowserImport(),
             new RestProtection(),
             new CliCommands(),
         ];
