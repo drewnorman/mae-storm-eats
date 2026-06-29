@@ -11,6 +11,7 @@
     "dev": "yarn build:css --watch & yarn build:js --watch",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
+    "postinstall": "git config core.hooksPath .githooks",
     "typecheck": "tsc --noEmit"
   },
   "commitlint": {

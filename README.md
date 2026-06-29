@@ -34,6 +34,10 @@ just dev-logs
 just dev-down
 ```
 
+Commit messages must follow Conventional Commits. `yarn install` and
+`just install-hooks` configure the local `commit-msg` hook, and CI validates
+commit messages on pull requests and pushes to `master`.
+
 The local WordPress environment is defined in `compose.yaml`. Plugin and theme
 code is mounted from `plugins/mae-storm-recipes` and
 `themes/mae-storm-recipes`.
