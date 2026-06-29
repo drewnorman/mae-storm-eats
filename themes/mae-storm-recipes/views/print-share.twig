@@ -22,7 +22,7 @@
       <h2 class="mt-8 text-xl font-semibold text-slate-950">Ingredients</h2>
       <ul class="mt-3 grid gap-1 text-slate-800">
         {% for ingredient in recipe_data.ingredients %}
-          <li>{{ ingredient }}</li>
+          <li>{{ ingredient|raw }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -31,7 +31,7 @@
       <h2 class="mt-8 text-xl font-semibold text-slate-950">Steps</h2>
       <ol class="mt-3 grid gap-2 text-slate-800">
         {% for step in recipe_data.steps %}
-          <li>{{ loop.index }}. {{ step }}</li>
+          <li>{{ loop.index }}. {{ step|raw }}</li>
         {% endfor %}
       </ol>
     {% endif %}

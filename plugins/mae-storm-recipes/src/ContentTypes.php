@@ -16,6 +16,7 @@ final class ContentTypes implements ServiceProviderInterface
     {
         add_action('init', [$this, 'registerPostTypes']);
         add_action('init', [$this, 'registerTaxonomies']);
+        add_filter('use_block_editor_for_post_type', [$this, 'disableBlockEditor'], 10, 2);
     }
 
     public function registerPostTypes(): void
@@ -45,10 +46,15 @@ final class ContentTypes implements ServiceProviderInterface
             'menu_icon' => 'dashicons-carrot',
             'has_archive' => true,
             'rewrite' => ['slug' => 'recipes'],
-            'supports' => ['title', 'editor', 'excerpt', 'thumbnail', 'revisions', 'custom-fields'],
+            'supports' => ['title', 'excerpt', 'thumbnail', 'revisions', 'custom-fields'],
             'capability_type' => 'post',
             'map_meta_cap' => true,
         ]);
+    }
+
+    public function disableBlockEditor(bool $use_block_editor, string $post_type): bool
+    {
+        return $post_type === self::POST_TYPE_RECIPE ? false : $use_block_editor;
     }
 
     public function registerTaxonomies(): void

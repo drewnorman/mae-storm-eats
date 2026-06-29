@@ -13,7 +13,26 @@ final class RecipeView
     {
         $structured_data = get_post_meta($post_id, RecipeMeta::META_STRUCTURED_DATA, true);
 
-        return is_array($structured_data) ? $structured_data : [];
+        if (! is_array($structured_data)) {
+            return [];
+        }
+
+        foreach (['ingredients', 'steps'] as $key) {
+            if (! is_array($structured_data[$key] ?? null)) {
+                $structured_data[$key] = [];
+                continue;
+            }
+
+            $structured_data[$key] = array_values(array_filter(array_map(static function (mixed $item): string {
+                if (is_array($item)) {
+                    $item = $item['text'] ?? $item['name'] ?? '';
+                }
+
+                return trim(wp_kses_post((string) $item));
+            }, $structured_data[$key]), static fn (string $item): bool => trim(wp_strip_all_tags($item)) !== ''));
+        }
+
+        return $structured_data;
     }
 
     /**
@@ -86,7 +105,7 @@ final class RecipeView
                 $item = $item['text'] ?? $item['name'] ?? '';
             }
 
-            return trim((string) $item);
+            return trim(wp_strip_all_tags((string) $item));
         }, $value);
 
         return array_values(array_filter($items));
