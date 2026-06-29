@@ -40,7 +40,7 @@ services:
     volumes:
       - wordpress-data:/var/www/html
       - ./vendor:/var/www/html/wp-content/vendor:Z
-      - ./plugins/mae-storm-recipes:/var/www/html/wp-content/plugins/mae-storm-recipes:Z
+      - ./plugins:/var/www/html/wp-content/plugins:Z
       - ./themes/mae-storm-recipes:/var/www/html/wp-content/themes/mae-storm-recipes:Z
       - ./config/dev/uploads:/var/www/html/wp-content/uploads:Z
 
