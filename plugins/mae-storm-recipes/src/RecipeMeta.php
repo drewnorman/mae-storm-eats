@@ -8,6 +8,7 @@ final class RecipeMeta implements ServiceProviderInterface
 {
     public const META_SOURCE_URLS = '_mae_storm_recipe_source_urls';
     public const META_PINTEREST_URLS = '_mae_storm_recipe_pinterest_urls';
+    public const META_PINTEREST_PIN_ID = '_mae_storm_recipe_pinterest_pin_id';
     public const META_IMAGES = '_mae_storm_recipe_images';
     public const META_SERVINGS = '_mae_storm_recipe_servings';
     public const META_PREP_TIME_MINUTES = '_mae_storm_recipe_prep_time_minutes';
@@ -27,6 +28,16 @@ final class RecipeMeta implements ServiceProviderInterface
     {
         $this->registerStringListMeta(self::META_SOURCE_URLS, 'Source URLs for the original recipe or recovered archive pages.');
         $this->registerStringListMeta(self::META_PINTEREST_URLS, 'Pinterest URLs associated with the recipe import.');
+
+        register_post_meta(ContentTypes::POST_TYPE_RECIPE, self::META_PINTEREST_PIN_ID, [
+            'type' => 'string',
+            'description' => 'Canonical Pinterest pin ID associated with this recipe import.',
+            'single' => true,
+            'default' => '',
+            'show_in_rest' => true,
+            'auth_callback' => [$this, 'canEditPostMeta'],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
 
         register_post_meta(ContentTypes::POST_TYPE_RECIPE, self::META_IMAGES, [
             'type' => 'array',
