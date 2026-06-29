@@ -92,6 +92,56 @@ final class RecipeView
     }
 
     /**
+     * @return list<array<string,mixed>>
+     */
+    public static function reviews(int $post_id): array
+    {
+        $query = new \WP_Query([
+            'post_type' => ContentTypes::POST_TYPE_REVIEW,
+            'post_status' => ['publish', 'private'],
+            'posts_per_page' => -1,
+            'meta_query' => [
+                [
+                    'key' => ReviewMeta::META_RECIPE_ID,
+                    'value' => $post_id,
+                    'compare' => '=',
+                    'type' => 'NUMERIC',
+                ],
+            ],
+        ]);
+
+        $reviews = array_values(array_filter($query->posts, static fn (mixed $post): bool => $post instanceof \WP_Post));
+
+        usort($reviews, static function (\WP_Post $a, \WP_Post $b): int {
+            $a_reviewed_at = (string) get_post_meta($a->ID, ReviewMeta::META_REVIEWED_AT, true);
+            $b_reviewed_at = (string) get_post_meta($b->ID, ReviewMeta::META_REVIEWED_AT, true);
+            $a_timestamp = $a_reviewed_at !== '' ? strtotime($a_reviewed_at) : strtotime($a->post_date_gmt);
+            $b_timestamp = $b_reviewed_at !== '' ? strtotime($b_reviewed_at) : strtotime($b->post_date_gmt);
+
+            return ((int) $b_timestamp) <=> ((int) $a_timestamp);
+        });
+
+        return array_map(static function (\WP_Post $review): array {
+            $reviewed_at = (string) get_post_meta($review->ID, ReviewMeta::META_REVIEWED_AT, true);
+            $timestamp = $reviewed_at !== '' ? strtotime($reviewed_at) : false;
+
+            return [
+                'title' => get_the_title($review),
+                'body' => apply_filters('the_content', $review->post_content),
+                'author' => (string) get_post_meta($review->ID, ReviewMeta::META_AUTHOR, true),
+                'reviewed_at' => $timestamp === false ? '' : wp_date(get_option('date_format'), $timestamp),
+                'pinterest_url' => (string) get_post_meta($review->ID, ReviewMeta::META_PINTEREST_URL, true),
+                'verified' => get_post_meta($review->ID, ReviewMeta::META_VERIFICATION, true) === 'verified',
+                'media_incomplete' => get_post_meta($review->ID, ReviewMeta::META_MEDIA_COMPLETE, true) === '0',
+                'photos' => array_values(array_filter(array_map(static function (mixed $attachment_id): array {
+                    $url = wp_get_attachment_image_url((int) $attachment_id, 'large');
+                    return $url ? ['url' => $url, 'alt' => (string) get_post_meta((int) $attachment_id, '_wp_attachment_image_alt', true)] : [];
+                }, (array) get_post_meta($review->ID, ReviewMeta::META_ATTACHMENTS, true)))),
+            ];
+        }, $reviews);
+    }
+
+    /**
      * @return list<string>
      */
     public static function textList(mixed $value): array

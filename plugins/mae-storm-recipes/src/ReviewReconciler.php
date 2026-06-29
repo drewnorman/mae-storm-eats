@@ -86,6 +86,8 @@ final class ReviewReconciler
         $attachments = array_map('absint', (array) get_post_meta($id, ReviewMeta::META_ATTACHMENTS, true));
         $attachments[] = $attachment_id;
         update_post_meta($id, ReviewMeta::META_ATTACHMENTS, array_values(array_unique($attachments)));
+        $recipe_id = (int) get_post_meta($id, ReviewMeta::META_RECIPE_ID, true);
+        (new RecipeImages())->useReviewPhoto($recipe_id, $attachment_id);
         $manifest = (array) get_post_meta($id, ReviewMeta::META_PHOTO_MANIFEST, true);
         update_post_meta($id, ReviewMeta::META_MEDIA_COMPLETE, count(array_unique($attachments)) >= count($manifest) ? '1' : '0');
     }
