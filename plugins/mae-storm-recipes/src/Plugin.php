@@ -16,6 +16,7 @@ final class Plugin
     private function __construct()
     {
         $this->services = [
+            new AccessGate(),
             new AdminBarDisabled(),
             new CommentsDisabled(),
             new ContentTypes(),

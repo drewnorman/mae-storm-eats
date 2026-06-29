@@ -8,6 +8,13 @@ use WP_Error;
 
 final class RestProtection implements ServiceProviderInterface
 {
+    private AccessGate $access_gate;
+
+    public function __construct(?AccessGate $access_gate = null)
+    {
+        $this->access_gate = $access_gate ?? new AccessGate();
+    }
+
     public function register(): void
     {
         add_filter('rest_authentication_errors', [$this, 'protectRecipeRoutes']);
@@ -25,8 +32,15 @@ final class RestProtection implements ServiceProviderInterface
             return $result;
         }
 
-        // Phase 4 will replace this placeholder with the shared-password access gate.
-        return $result;
+        if ($this->access_gate->isAuthorized()) {
+            return $result;
+        }
+
+        return new WP_Error(
+            'mae_storm_recipes_private_rest',
+            __('Recipe API routes require private recipe access.', 'mae-storm-recipes'),
+            ['status' => 401]
+        );
     }
 
     private function currentRoute(): ?string

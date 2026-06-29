@@ -11,6 +11,7 @@
 
       <label class="mt-6 block text-sm font-medium text-slate-700" for="mae-storm-recipes-password">Password</label>
       <input id="mae-storm-recipes-password" class="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-200" type="password" name="mae_storm_recipes_password" autocomplete="current-password" required>
+      {{ login_nonce|raw }}
 
       <button class="mt-6 w-full rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" type="submit">
         Enter
