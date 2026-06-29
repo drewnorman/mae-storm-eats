@@ -47,3 +47,15 @@ The Compose stack expects the external `local-proxy` Podman network and its
 shared Traefik proxy to already be running. Theme assets are committed for the
 initial boot; run `corepack yarn dev` separately when working on theme CSS or
 JavaScript.
+
+## Plugin And Theme Contract
+
+The plugin and theme ship together in the app artifact but keep separate
+WordPress responsibilities. The plugin owns durable app behavior: recipe content
+types, taxonomies, meta, imports, admin review, CLI commands, REST protection,
+and the shared-password access gate. The theme owns Timber templates, assets,
+layout, and frontend query presentation.
+
+Timber is a required app dependency. The active app theme registers the Timber
+locations used by plugin-facing templates, including the private login template
+rendered by the access gate.
