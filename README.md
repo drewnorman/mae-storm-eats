@@ -59,3 +59,13 @@ layout, and frontend query presentation.
 Timber is a required app dependency. The active app theme registers the Timber
 locations used by plugin-facing templates, including the private login template
 rendered by the access gate.
+
+## Production Handoff
+
+Build the app artifact consumed by the shared infra repo:
+
+```sh
+just build-artifact
+```
+
+The service boundary, runtime secrets, persistent data, and backup expectations are documented in `docs/service-contract.md`.

@@ -24,6 +24,9 @@ install-hooks:
 commitlint range="HEAD~1..HEAD":
   @if command -v corepack >/dev/null 2>&1 && [ -d node_modules ]; then XDG_CACHE_HOME=/tmp/corepack-cache corepack yarn commitlint --from {{range}}; else echo "Skipping commitlint: run 'corepack yarn install' first."; fi
 
+build-artifact version=`git rev-parse --short HEAD`:
+  @scripts/release/build-artifact.sh {{version}}
+
 dev-up:
   @scripts/dev/up.sh
 

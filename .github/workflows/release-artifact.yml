@@ -1,0 +1,50 @@
+name: Release Artifact
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    name: Build app artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install JS dependencies
+        run: yarn install
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer:v2
+
+      - name: Validate Composer config
+        run: composer validate --strict --no-check-lock
+
+      - name: Build theme assets
+        run: yarn build
+
+      - name: Build artifact
+        run: scripts/release/build-artifact.sh "${GITHUB_SHA}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recipes-${{ github.sha }}
+          path: dist/recipes-${{ github.sha }}.tar.gz
+          if-no-files-found: error
