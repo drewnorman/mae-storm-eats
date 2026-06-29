@@ -1,0 +1,7 @@
+body { font: 14px system-ui, sans-serif; width: 320px; margin: 0; color: #303029; }
+main { padding: 16px; }
+h1 { font-size: 18px; margin-top: 0; }
+label { display: grid; gap: 4px; margin: 10px 0; }
+input, button { font: inherit; padding: 8px; }
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+progress { width: 100%; margin-top: 12px; }
