@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+vendor/
+.pnp.*
+
+# Yarn
+.yarn/*
+!.yarn/releases/
+!.yarn/plugins/
+!.yarn/sdks/
+!.yarn/versions/
+
+# Composer
+composer.phar
+
+# Environment
+.env
+.env.*
+!.env.example
+notes/
+
+# WordPress local state
+wp-content/uploads/
+config/dev/db/
+config/dev/wordpress/
+
+# Build and cache output
+dist/
+build/
+coverage/
+.cache/
+.direnv/
+.phpunit.result.cache
+
+# OpenTofu / Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

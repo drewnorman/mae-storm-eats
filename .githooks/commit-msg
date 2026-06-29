@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -eu
+
+if ! command -v corepack >/dev/null 2>&1; then
+  echo "corepack is required to lint commit messages." >&2
+  exit 1
+fi
+
+if [ ! -d node_modules ]; then
+  echo "node_modules is missing. Run 'corepack yarn install' before committing." >&2
+  exit 1
+fi
+
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/corepack-cache}" corepack yarn commitlint --edit "$1"

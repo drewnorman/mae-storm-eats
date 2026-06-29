@@ -1,0 +1,32 @@
+{
+  "name": "mae-storm/recipes",
+  "description": "Private WordPress recipe application.",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.3",
+    "timber/timber": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "MaeStorm\\Recipes\\": "plugins/mae-storm-recipes/src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MaeStorm\\Recipes\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "fmt": "@php -r \"echo 'PHP formatter not configured yet.' . PHP_EOL;\"",
+    "check": [
+      "@composer validate --strict --no-check-lock"
+    ]
+  },
+  "config": {
+    "allow-plugins": {},
+    "sort-packages": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
