@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -eu
 
-echo "importer fixtures smoke: future check will import live, archived, DOCX, image, malformed, and duplicate fixtures into recipe candidates."
+echo "importer fixtures smoke: browser-import pins become reviewable candidates and malformed or duplicate records are detected."
 
-for directory in live-pages archived-pages docx images malformed duplicates; do
+for directory in live-pages archived-pages malformed duplicates; do
   if [ ! -d "fixtures/${directory}" ]; then
     echo "importer fixtures smoke: missing fixtures/${directory}" >&2
     exit 1

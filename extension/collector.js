@@ -64,7 +64,6 @@ async function expandThreads(timeoutMs = 20000) {
 }
 
 function collectComments(owner) {
-  // Replies share the same normalized record shape and retain their parent ID.
   const nodes = [
     ...document.querySelectorAll(
       "[data-comment-id], [data-test-id*='comment-item'], [data-test-id*='reply-item']",

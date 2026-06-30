@@ -9,6 +9,9 @@ fi
 status=0
 
 while IFS= read -r -d '' file; do
+  if [[ ! -e "$file" ]]; then
+    continue
+  fi
   case "$file" in
     .git/*|node_modules/*|vendor/*|.yarn/*|config/dev/uploads/*)
       continue
@@ -31,4 +34,3 @@ while IFS= read -r -d '' file; do
 done < <(git ls-files -z --cached --others --exclude-standard)
 
 exit "$status"
-

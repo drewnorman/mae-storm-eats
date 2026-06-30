@@ -11,6 +11,7 @@ fmt:
 
 check:
   just check-editorconfig
+  @scripts/test/browser-import.sh
   @if command -v corepack >/dev/null 2>&1 && [ -d node_modules ]; then XDG_CACHE_HOME=/tmp/corepack-cache corepack yarn fmt:check; else echo "Skipping JS checks: run 'corepack yarn install' first."; fi
   @if command -v composer >/dev/null 2>&1; then composer validate --strict --no-check-lock; else echo "Skipping Composer checks: composer is not installed."; fi
 
