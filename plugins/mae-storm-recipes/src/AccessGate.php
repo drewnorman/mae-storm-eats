@@ -151,7 +151,6 @@ final class AccessGate implements ServiceProviderInterface
             'login_action' => esc_url(home_url(add_query_arg([]))),
             'login_error' => $error,
             'login_nonce' => wp_nonce_field(self::ACTION, self::NONCE, true, false),
-            'site_name' => get_bloginfo('name'),
         ];
 
         /**

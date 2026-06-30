@@ -1,0 +1,13 @@
+<article class="recipe-card group">
+  <a class="recipe-card__media" href="{{ post.link }}" aria-label="View {{ post.title }}">
+    {% if post.thumbnail %}
+      <img class="recipe-card__image" src="{{ post.thumbnail.src('medium_large') }}" alt="">
+    {% else %}
+      <span class="recipe-card__placeholder" aria-hidden="true"></span>
+    {% endif %}
+    {% include "partials/recipe-meta.twig" with { post: post } only %}
+  </a>
+  <h2 class="recipe-card__title">
+    <a href="{{ post.link }}">{{ post.title }}</a>
+  </h2>
+</article>

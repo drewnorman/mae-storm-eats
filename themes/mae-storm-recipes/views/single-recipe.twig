@@ -1,88 +1,98 @@
 {% extends "layouts/base.twig" %}
 
-{% block content %}
-  <article class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-    <header class="border-b border-slate-200 pb-6">
-      <a class="text-sm font-medium text-amber-700 hover:text-amber-800" href="{{ site.url }}">Recipes</a>
-      <h1 class="mt-3 text-4xl font-semibold text-slate-950">{{ post.title }}</h1>
-      {% if post.excerpt %}
-        <p class="mt-4 max-w-2xl text-base leading-7 text-slate-600">{{ post.excerpt }}</p>
-      {% endif %}
+{% block header_leading %}
+  <a class="header-back" href="{{ recipe_archive_url }}">‹ Back to Recipes</a>
+{% endblock %}
 
-      <div class="mt-5 flex flex-wrap gap-2 text-sm">
-        <a class="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-700 hover:border-amber-300" href="{{ post.link }}?print=1">Print</a>
-        <a class="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-700 hover:border-amber-300" href="{{ post.link }}?share=1">Share</a>
+{% block content %}
+  <article class="page-shell pb-20">
+    <header class="recipe-hero">
+      <div class="min-w-0">
+        {% include "partials/recipe-meta.twig" with {
+          post: post,
+          total_time: recipe_meta.total_time,
+          recipe_yield: recipe_meta.recipe_yield
+        } only %}
+        <h1 class="recipe-title">{{ post.title }}</h1>
+        <p class="recipe-taxonomy">
+          {% for term in post.terms %}{{ term.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% if recipe_meta.difficulty %}{% if post.terms|length %}, {% endif %}{{ recipe_meta.difficulty|capitalize }}{% endif %}
+        </p>
       </div>
+
+      {% if post.thumbnail %}
+        <img class="recipe-hero__image" src="{{ post.thumbnail.src('large') }}" alt="">
+      {% endif %}
     </header>
 
-    {% if post.thumbnail %}
-      <img class="mt-6 aspect-[16/9] w-full rounded-lg object-cover" src="{{ post.thumbnail.src('large') }}" alt="">
-    {% endif %}
+    <div class="recipe-surface">
+      <div class="recipe-body">
+        {% if recipe_data.ingredients %}
+          <section class="ingredients-panel">
+            <h2 class="recipe-section-title">Ingredients</h2>
+            <ul class="mt-3 list-disc space-y-1 pl-5 font-montserrat text-sm leading-6 text-neutral-900">
+              {% for ingredient in recipe_data.ingredients %}
+                <li>{{ ingredient|raw }}</li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
 
-    <div class="prose prose-slate mt-8 max-w-none">
-      {{ post.content }}
+        <section class="directions-panel">
+          <h2 class="recipe-section-title">Directions</h2>
+          {% if recipe_data.steps %}
+            <ol class="mt-4 list-decimal space-y-2 pl-6 font-montserrat text-sm leading-7 text-neutral-900">
+              {% for step in recipe_data.steps %}
+                <li class="pl-2">{{ step|raw }}</li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <div class="prose mt-4 max-w-none font-montserrat text-neutral-900">{{ post.content }}</div>
+          {% endif %}
+        </section>
+      </div>
     </div>
 
-    <dl class="mt-6 grid gap-3 border-y border-slate-200 py-4 text-sm sm:grid-cols-5">
-      {% if recipe_meta.servings %}
-        <div>
-          <dt class="font-medium text-slate-500">Servings</dt>
-          <dd class="mt-1 text-slate-950">{{ recipe_meta.servings }}</dd>
-        </div>
-      {% endif %}
-      {% if recipe_meta.prep_time %}
-        <div>
-          <dt class="font-medium text-slate-500">Prep</dt>
-          <dd class="mt-1 text-slate-950">{{ recipe_meta.prep_time }} min</dd>
-        </div>
-      {% endif %}
-      {% if recipe_meta.cook_time %}
-        <div>
-          <dt class="font-medium text-slate-500">Cook</dt>
-          <dd class="mt-1 text-slate-950">{{ recipe_meta.cook_time }} min</dd>
-        </div>
-      {% endif %}
-      {% if recipe_meta.total_time %}
-        <div>
-          <dt class="font-medium text-slate-500">Total</dt>
-          <dd class="mt-1 text-slate-950">{{ recipe_meta.total_time }} min</dd>
-        </div>
-      {% endif %}
-      {% if recipe_meta.difficulty %}
-        <div>
-          <dt class="font-medium text-slate-500">Difficulty</dt>
-          <dd class="mt-1 capitalize text-slate-950">{{ recipe_meta.difficulty }}</dd>
-        </div>
-      {% endif %}
-    </dl>
+    <div class="mt-5 flex flex-wrap gap-3 text-sm print:hidden">
+      <a class="secondary-action" href="{{ post.link }}?print=1">Print</a>
+      <a class="secondary-action" href="{{ post.link }}?share=1">Share</a>
+    </div>
 
-    {% if recipe_data.ingredients %}
-      <section class="mt-8">
-        <h2 class="text-2xl font-semibold text-slate-950">Ingredients</h2>
-        <ul class="mt-4 grid gap-2 text-slate-700">
-          {% for ingredient in recipe_data.ingredients %}
-            <li class="rounded-md border border-slate-200 bg-white px-3 py-2">{{ ingredient|raw }}</li>
+    {% if related_recipes %}
+      <section class="mt-12" aria-labelledby="related-recipes-heading">
+        <h2 id="related-recipes-heading" class="section-heading">Related…</h2>
+        <div class="recipe-grid mt-6">
+          {% for post in related_recipes %}
+            {% include "partials/recipe-card.twig" with { post: post } only %}
           {% endfor %}
-        </ul>
+        </div>
       </section>
     {% endif %}
 
-    {% if recipe_data.steps %}
-      <section class="mt-8">
-        <h2 class="text-2xl font-semibold text-slate-950">Steps</h2>
-        <ol class="mt-4 grid gap-3 text-slate-700">
-          {% for step in recipe_data.steps %}
-            <li class="rounded-md border border-slate-200 bg-white p-4">
-              <span class="text-sm font-semibold text-amber-700">Step {{ loop.index }}</span>
-              <div class="mt-2 leading-7">{{ step|raw }}</div>
-            </li>
+    {% if recipe_reviews %}
+      <section class="reviews-panel">
+        <h2 class="section-heading">Reviews <span class="font-normal">({{ recipe_reviews|length }})</span></h2>
+        <div class="mt-7 grid gap-5">
+          {% for review in recipe_reviews %}
+            <article class="review">
+              <div class="flex flex-wrap justify-center gap-x-3 gap-y-1 text-sm font-bold uppercase">
+                {% if review.author %}<span>{{ review.author }}</span>{% endif %}
+                {% if review.reviewed_at %}<time>{{ review.reviewed_at }}</time>{% endif %}
+                {% if review.pinterest_url %}<a class="text-plum underline hover:text-olive" href="{{ review.pinterest_url }}" rel="noreferrer">Pinterest</a>{% endif %}
+              </div>
+              <div class="prose mx-auto mt-3 max-w-4xl text-center font-montserrat text-olive">{{ review.body|raw }}</div>
+              {% if review.photos %}
+                <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {% for photo in review.photos %}<img class="aspect-square w-full object-cover" src="{{ photo.src('large') }}" alt="{{ photo.alt }}">{% endfor %}
+                </div>
+              {% endif %}
+              {% if review.media_incomplete %}<p class="mt-3 text-sm text-red-800">Some Pinterest photos could not be imported.</p>{% endif %}
+            </article>
           {% endfor %}
-        </ol>
+        </div>
       </section>
     {% endif %}
 
-    {% if recipe_schema %}
-      <script type="application/ld+json">{{ recipe_schema|raw }}</script>
-    {% endif %}
+    {% if recipe_schema %}<script type="application/ld+json">{{ recipe_schema|raw }}</script>{% endif %}
   </article>
 {% endblock %}

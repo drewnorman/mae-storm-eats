@@ -1,26 +1,75 @@
 <!doctype html>
-<html class="min-h-full bg-stone-50 text-slate-950" {{ function('language_attributes') }}>
+<html class="min-h-full bg-sand text-olive" {{ function('language_attributes') }}>
   <head>
     <meta charset="{{ site.charset }}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {{ function('wp_head') }}
   </head>
   <body class="{{ body_class }} min-h-full antialiased">
-    <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow" href="#content">
-      Skip to content
-    </a>
+    <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:shadow-lg" href="#content">Skip to content</a>
 
-    <div class="min-h-screen bg-[linear-gradient(180deg,#fafaf9_0%,#f8fafc_58%,#fff7ed_100%)]">
-      <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <a class="text-base font-semibold tracking-normal text-slate-950" href="{{ site.url }}">
-            {{ site_name|default(site.name) }}
+    <div class="min-h-screen bg-sand">
+      <header class="relative z-20 print:hidden">
+        <div class="site-header">
+          <div class="site-header__leading">
+            {% block header_leading %}{% endblock %}
+          </div>
+
+          <a class="site-wordmark" href="{{ recipe_archive_url|default(site.url) }}" aria-label="{{ site.name }}">
+            <img src="{{ theme.link }}/assets/src/images/mae-storm-eats.svg" alt="">
           </a>
 
-          <nav class="flex items-center gap-3 text-sm text-slate-700" aria-label="Primary">
-            <a class="rounded-md px-2 py-1 hover:bg-slate-100 hover:text-slate-950" href="{{ site.url }}">Recipes</a>
-            <a class="rounded-md px-2 py-1 hover:bg-slate-100 hover:text-slate-950" href="{{ site.url }}/?s=">Search</a>
-          </nav>
+          <div class="relative justify-self-end">
+            <button class="conversions-toggle" type="button" data-conversions-toggle aria-expanded="false" aria-controls="conversions-panel">
+              <span class="hidden sm:inline">Conversions</span>
+              <img class="sm:hidden" src="{{ theme.link }}/assets/src/images/conversions.svg" alt="">
+              <span class="sr-only sm:hidden">Open cooking conversions</span>
+            </button>
+
+            <section id="conversions-panel" class="conversions-panel hidden" data-conversions-panel>
+              <div class="flex items-start justify-between gap-4">
+                <h2 class="text-lg font-bold uppercase">Cooking Conversions</h2>
+                <button class="brand-icon-button" type="button" data-conversions-close aria-label="Close conversions">&times;</button>
+              </div>
+
+              <dl class="mt-5 grid grid-cols-2 gap-x-5 gap-y-3 text-sm">
+                <div><dt class="font-bold">1 tbsp</dt><dd>3 tsp</dd></div>
+                <div><dt class="font-bold">1 cup</dt><dd>16 tbsp</dd></div>
+                <div><dt class="font-bold">1 pint</dt><dd>2 cups</dd></div>
+                <div><dt class="font-bold">1 quart</dt><dd>4 cups</dd></div>
+                <div><dt class="font-bold">1 oz</dt><dd>28.35 g</dd></div>
+                <div><dt class="font-bold">350 F</dt><dd>177 C</dd></div>
+              </dl>
+
+              <form class="mt-5 border-t-2 border-coral pt-5" data-conversions-calculator>
+                <label class="brand-label" for="conversion-kind">Calculator</label>
+                <select id="conversion-kind" class="brand-field mt-2" data-conversion-kind>
+                  <option value="volume">Volume</option>
+                  <option value="weight">Weight</option>
+                  <option value="temperature">Temperature</option>
+                </select>
+
+                <div class="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                  <label class="block text-sm">Amount
+                    <input class="brand-field mt-1" type="number" inputmode="decimal" step="any" value="1" data-conversion-value>
+                  </label>
+                  <span class="pb-3 text-sm font-bold">to</span>
+                  <label class="block text-sm">Result
+                    <output class="brand-field mt-1 block min-h-11" data-conversion-result>1</output>
+                  </label>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                  <label class="block text-sm">From
+                    <select class="brand-field mt-1" data-conversion-from></select>
+                  </label>
+                  <label class="block text-sm">To
+                    <select class="brand-field mt-1" data-conversion-to></select>
+                  </label>
+                </div>
+              </form>
+            </section>
+          </div>
         </div>
       </header>
 

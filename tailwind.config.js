@@ -27,6 +27,13 @@ module.exports = {
           "sans-serif",
         ],
       },
+      colors: {
+        sand: "#f6c787",
+        olive: "#5e5c36",
+        plum: "#996d83",
+        coral: "#ee9e60",
+        cream: "#fff0d2",
+      },
     },
   },
   plugins: [fluid, containerQueries],

@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace MaeStorm\Recipes;
 
+use Timber\Post;
+use Timber\Term;
+use Timber\Timber;
+
 final class RecipeView
 {
     /**
      * @return array<string, mixed>
      */
-    public static function structuredData(int $post_id): array
+    public static function structuredData(Post $recipe): array
     {
-        $structured_data = get_post_meta($post_id, RecipeMeta::META_STRUCTURED_DATA, true);
+        $structured_data = $recipe->meta(RecipeMeta::META_STRUCTURED_DATA);
 
         if (! is_array($structured_data)) {
             return [];
@@ -36,33 +40,33 @@ final class RecipeView
     }
 
     /**
-     * @return array{servings: int, prep_time: int, cook_time: int, total_time: int, difficulty: string}
+     * @return array{recipe_yield: string, prep_time: int, cook_time: int, total_time: int, difficulty: string}
      */
-    public static function meta(int $post_id): array
+    public static function meta(Post $recipe): array
     {
         return [
-            'servings' => (int) get_post_meta($post_id, RecipeMeta::META_SERVINGS, true),
-            'prep_time' => (int) get_post_meta($post_id, RecipeMeta::META_PREP_TIME_MINUTES, true),
-            'cook_time' => (int) get_post_meta($post_id, RecipeMeta::META_COOK_TIME_MINUTES, true),
-            'total_time' => (int) get_post_meta($post_id, RecipeMeta::META_TOTAL_TIME_MINUTES, true),
-            'difficulty' => (string) get_post_meta($post_id, RecipeMeta::META_DIFFICULTY, true),
+            'recipe_yield' => (string) $recipe->meta(RecipeMeta::META_SERVINGS),
+            'prep_time' => (int) $recipe->meta(RecipeMeta::META_PREP_TIME_MINUTES),
+            'cook_time' => (int) $recipe->meta(RecipeMeta::META_COOK_TIME_MINUTES),
+            'total_time' => (int) $recipe->meta(RecipeMeta::META_TOTAL_TIME_MINUTES),
+            'difficulty' => (string) $recipe->meta(RecipeMeta::META_DIFFICULTY),
         ];
     }
 
     /**
      * @param array<string, mixed>|null $recipe_data
-     * @param array{servings: int, prep_time: int, cook_time: int, total_time: int, difficulty: string}|null $recipe_meta
+     * @param array{recipe_yield: string, prep_time: int, cook_time: int, total_time: int, difficulty: string}|null $recipe_meta
      */
-    public static function schema(int $post_id, ?array $recipe_data = null, ?array $recipe_meta = null): string
+    public static function schema(Post $recipe, ?array $recipe_data = null, ?array $recipe_meta = null): string
     {
-        $recipe_data ??= self::structuredData($post_id);
-        $recipe_meta ??= self::meta($post_id);
+        $recipe_data ??= self::structuredData($recipe);
+        $recipe_meta ??= self::meta($recipe);
 
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Recipe',
-            'name' => get_the_title($post_id),
-            'description' => wp_strip_all_tags(get_the_excerpt($post_id)),
+            'name' => $recipe->title(),
+            'description' => wp_strip_all_tags((string) $recipe->excerpt()),
             'recipeIngredient' => self::textList($recipe_data['ingredients'] ?? []),
             'recipeInstructions' => array_map(
                 static fn (string $step): array => ['@type' => 'HowToStep', 'text' => $step],
@@ -70,8 +74,8 @@ final class RecipeView
             ),
         ];
 
-        if ($recipe_meta['servings'] > 0) {
-            $schema['recipeYield'] = (string) $recipe_meta['servings'];
+        if ($recipe_meta['recipe_yield'] !== '') {
+            $schema['recipeYield'] = $recipe_meta['recipe_yield'];
         }
 
         if ($recipe_meta['total_time'] > 0) {
@@ -82,61 +86,118 @@ final class RecipeView
     }
 
     /**
-     * @return array<int, \WP_Term>
+     * @return list<Term>
      */
     public static function terms(string $taxonomy): array
     {
-        $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => true]);
+        return array_values([...Timber::get_terms(['taxonomy' => $taxonomy, 'hide_empty' => true])]);
+    }
 
-        return is_wp_error($terms) ? [] : $terms;
+    /**
+     * @return list<Post>
+     */
+    public static function relatedRecipes(Post $recipe, int $limit = 3): array
+    {
+        if ($limit <= 0) {
+            return [];
+        }
+
+        $tax_query = ['relation' => 'OR'];
+
+        foreach ([
+            ContentTypes::TAXONOMY_COURSE,
+            ContentTypes::TAXONOMY_CUISINE,
+            ContentTypes::TAXONOMY_DIET,
+        ] as $taxonomy) {
+            $term_ids = array_map(
+                static fn (Term $term): int => $term->ID,
+                $recipe->terms(['taxonomy' => $taxonomy])
+            );
+
+            if ($term_ids !== []) {
+                $tax_query[] = [
+                    'taxonomy' => $taxonomy,
+                    'field' => 'term_id',
+                    'terms' => array_map('intval', $term_ids),
+                ];
+            }
+        }
+
+        $related = [];
+
+        if (count($tax_query) > 1) {
+            $related = self::postList([
+                'post_type' => ContentTypes::POST_TYPE_RECIPE,
+                'post_status' => 'publish',
+                'posts_per_page' => $limit,
+                'post__not_in' => [$recipe->ID],
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'tax_query' => $tax_query,
+            ]);
+        }
+
+        $related_ids = array_map(static fn (Post $post): int => $post->ID, $related);
+
+        if (count($related) < $limit) {
+            $fallback = self::postList([
+                'post_type' => ContentTypes::POST_TYPE_RECIPE,
+                'post_status' => 'publish',
+                'posts_per_page' => $limit - count($related),
+                'post__not_in' => array_merge([$recipe->ID], $related_ids),
+                'orderby' => 'date',
+                'order' => 'DESC',
+            ]);
+            $related = array_merge($related, $fallback);
+        }
+
+        return array_slice($related, 0, $limit);
     }
 
     /**
      * @return list<array<string,mixed>>
      */
-    public static function reviews(int $post_id): array
+    public static function reviews(Post $recipe): array
     {
-        $query = new \WP_Query([
+        $reviews = self::postList([
             'post_type' => ContentTypes::POST_TYPE_REVIEW,
             'post_status' => ['publish', 'private'],
             'posts_per_page' => -1,
             'meta_query' => [
                 [
                     'key' => ReviewMeta::META_RECIPE_ID,
-                    'value' => $post_id,
+                    'value' => $recipe->ID,
                     'compare' => '=',
                     'type' => 'NUMERIC',
                 ],
             ],
         ]);
 
-        $reviews = array_values(array_filter($query->posts, static fn (mixed $post): bool => $post instanceof \WP_Post));
-
-        usort($reviews, static function (\WP_Post $a, \WP_Post $b): int {
-            $a_reviewed_at = (string) get_post_meta($a->ID, ReviewMeta::META_REVIEWED_AT, true);
-            $b_reviewed_at = (string) get_post_meta($b->ID, ReviewMeta::META_REVIEWED_AT, true);
-            $a_timestamp = $a_reviewed_at !== '' ? strtotime($a_reviewed_at) : strtotime($a->post_date_gmt);
-            $b_timestamp = $b_reviewed_at !== '' ? strtotime($b_reviewed_at) : strtotime($b->post_date_gmt);
+        usort($reviews, static function (Post $a, Post $b): int {
+            $a_reviewed_at = (string) $a->meta(ReviewMeta::META_REVIEWED_AT);
+            $b_reviewed_at = (string) $b->meta(ReviewMeta::META_REVIEWED_AT);
+            $a_timestamp = $a_reviewed_at !== '' ? strtotime($a_reviewed_at) : (int) $a->date('U');
+            $b_timestamp = $b_reviewed_at !== '' ? strtotime($b_reviewed_at) : (int) $b->date('U');
 
             return ((int) $b_timestamp) <=> ((int) $a_timestamp);
         });
 
-        return array_map(static function (\WP_Post $review): array {
-            $reviewed_at = (string) get_post_meta($review->ID, ReviewMeta::META_REVIEWED_AT, true);
+        return array_map(static function (Post $review): array {
+            $reviewed_at = (string) $review->meta(ReviewMeta::META_REVIEWED_AT);
             $timestamp = $reviewed_at !== '' ? strtotime($reviewed_at) : false;
 
             return [
-                'title' => get_the_title($review),
-                'body' => apply_filters('the_content', $review->post_content),
-                'author' => (string) get_post_meta($review->ID, ReviewMeta::META_AUTHOR, true),
+                'title' => $review->title(),
+                'body' => $review->content(),
+                'author' => (string) $review->meta(ReviewMeta::META_AUTHOR),
                 'reviewed_at' => $timestamp === false ? '' : wp_date(get_option('date_format'), $timestamp),
-                'pinterest_url' => (string) get_post_meta($review->ID, ReviewMeta::META_PINTEREST_URL, true),
-                'verified' => get_post_meta($review->ID, ReviewMeta::META_VERIFICATION, true) === 'verified',
-                'media_incomplete' => get_post_meta($review->ID, ReviewMeta::META_MEDIA_COMPLETE, true) === '0',
-                'photos' => array_values(array_filter(array_map(static function (mixed $attachment_id): array {
-                    $url = wp_get_attachment_image_url((int) $attachment_id, 'large');
-                    return $url ? ['url' => $url, 'alt' => (string) get_post_meta((int) $attachment_id, '_wp_attachment_image_alt', true)] : [];
-                }, (array) get_post_meta($review->ID, ReviewMeta::META_ATTACHMENTS, true)))),
+                'pinterest_url' => (string) $review->meta(ReviewMeta::META_PINTEREST_URL),
+                'verified' => $review->meta(ReviewMeta::META_VERIFICATION) === 'verified',
+                'media_incomplete' => $review->meta(ReviewMeta::META_MEDIA_COMPLETE) === '0',
+                'photos' => array_values(array_filter(array_map(
+                    static fn (mixed $attachment_id): mixed => Timber::get_image((int) $attachment_id),
+                    (array) $review->meta(ReviewMeta::META_ATTACHMENTS)
+                ))),
             ];
         }, $reviews);
     }
@@ -159,5 +220,16 @@ final class RecipeView
         }, $value);
 
         return array_values(array_filter($items));
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     * @return list<Post>
+     */
+    private static function postList(array $query): array
+    {
+        $posts = Timber::get_posts($query);
+
+        return $posts === null ? [] : array_values([...$posts]);
     }
 }

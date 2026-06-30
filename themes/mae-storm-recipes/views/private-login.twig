@@ -1,21 +1,20 @@
 {% extends "layouts/base.twig" %}
 
 {% block content %}
-  <section class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-md place-items-center px-4 py-10">
-    <form class="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm" method="post" action="{{ login_action|default(site.url) }}">
-      <h1 class="text-2xl font-semibold text-slate-950">Private recipes</h1>
+  <section class="mx-auto grid min-h-[calc(100vh-10rem)] max-w-lg place-items-center px-4 py-10">
+    <form class="w-full border-2 border-coral bg-cream p-7 shadow-lg sm:p-10" method="post" action="{{ login_action|default(site.url) }}">
+      <p class="text-sm font-bold uppercase tracking-wider text-plum">Mae Storm Eats</p>
+      <h1 class="mt-2 text-4xl text-olive">Private recipes</h1>
 
       {% if login_error %}
-        <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ login_error }}</p>
+        <p class="mt-5 border-l-4 border-red-700 bg-white px-4 py-3 text-sm text-red-800" role="alert">{{ login_error }}</p>
       {% endif %}
 
-      <label class="mt-6 block text-sm font-medium text-slate-700" for="mae-storm-recipes-password">Password</label>
-      <input id="mae-storm-recipes-password" class="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-200" type="password" name="mae_storm_recipes_password" autocomplete="current-password" required>
+      <label class="brand-label mt-7" for="mae-storm-recipes-password">Password</label>
+      <input id="mae-storm-recipes-password" class="brand-field mt-2" type="password" name="mae_storm_recipes_password" autocomplete="current-password" required>
       {{ login_nonce|raw }}
 
-      <button class="mt-6 w-full rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" type="submit">
-        Enter
-      </button>
+      <button class="mt-7 w-full bg-olive px-5 py-3 text-lg uppercase text-white transition hover:bg-plum" type="submit">Enter</button>
     </form>
   </section>
 {% endblock %}
