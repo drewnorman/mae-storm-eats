@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>WordPress connection setup</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="setup-page">
+    <main>
+      <header>
+        <p class="eyebrow">Mae Storm Eats</p>
+        <h1>WordPress connection</h1>
+        <p class="description">
+          Connect the restricted service account used for Pinterest imports.
+        </p>
+      </header>
+
+      <section class="credentials" aria-labelledby="credentials-heading">
+        <h2 id="credentials-heading">Credentials</h2>
+        <div id="credential-form">
+          <label
+            >WordPress site URL
+            <input
+              id="host"
+              type="url"
+              inputmode="url"
+              autocomplete="url"
+              required
+            />
+          </label>
+          <label
+            >WordPress username
+            <input id="username" autocomplete="username" required />
+          </label>
+          <label for="password">Application Password</label>
+          <input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+          <div class="credential-actions">
+            <button id="connect" class="verify" type="button">
+              <span class="spinner" aria-hidden="true" hidden></span>
+              <span data-connect-label>Connect</span>
+            </button>
+            <button id="cancel-edit" class="cancel" type="button" hidden>
+              Cancel
+            </button>
+          </div>
+        </div>
+        <div id="verified-summary" class="verified-summary" hidden>
+          <p><strong>Site</strong> <span id="verified-origin"></span></p>
+          <p><strong>Username</strong> <span id="verified-username"></span></p>
+          <button id="edit-connection" class="verify" type="button">
+            Edit connection
+          </button>
+        </div>
+        <p id="connection-message" class="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <script src="connection.js"></script>
+  </body>
+</html>

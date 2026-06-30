@@ -12,10 +12,13 @@ function profileFromPage() {
       /^\/[^/]+\/?$/.test(new URL(link.href, location.href).pathname),
   );
   const username = profile
-    ? new URL(profile.href, location.href).pathname.split("/").filter(Boolean)[0]
+    ? new URL(profile.href, location.href).pathname
+        .split("/")
+        .filter(Boolean)[0]
     : "";
   const accountId =
-    document.querySelector("[data-test-id='header-profile']")?.dataset?.userId ||
+    document.querySelector("[data-test-id='header-profile']")?.dataset
+      ?.userId ||
     document.querySelector("[data-user-id]")?.dataset?.userId ||
     "";
   return { id: accountId, username, profile_url: profile?.href || "" };
@@ -43,10 +46,10 @@ async function expandThreads(timeoutMs = 20000) {
   const deadline = Date.now() + timeoutMs;
   let unchanged = 0;
   while (Date.now() < deadline && unchanged < 3) {
+    const state = await browser.storage.local.get("run");
+    if (state.run?.pauseRequested) return false;
     const controls = [
-      ...document.querySelectorAll(
-        "button, [role='button']",
-      ),
+      ...document.querySelectorAll("button, [role='button']"),
     ].filter((node) =>
       /more comments|view replies|more replies|load more|show more/i.test(
         node.textContent || node.getAttribute("aria-label") || "",
@@ -103,12 +106,16 @@ function collectComments(owner) {
 }
 
 browser.runtime.onMessage.addListener(async (message) => {
+  if (message.type === "ping") {
+    return { ready: true, url: location.href };
+  }
   if (message.type === "discover") {
     const pins = new Map();
     let stable = 0;
     while (stable < 15) {
       const state = await browser.storage.local.get("run");
-      if (state.run?.cancelled) return { cancelled: true, pins: [...pins.values()] };
+      if (state.run?.pauseRequested)
+        return { paused: true, pins: [...pins.values()] };
       const before = pins.size;
       document.querySelectorAll('a[href*="/pin/"]').forEach((link) => {
         const id = pinId(link.href);
@@ -120,26 +127,44 @@ browser.runtime.onMessage.addListener(async (message) => {
           });
       });
       stable = pins.size === before ? stable + 1 : 0;
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+      browser.runtime
+        .sendMessage({
+          type: "discoveryProgress",
+          discovered: pins.size,
+          stable,
+        })
+        .catch(() => {});
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth",
+      });
       await wait(750);
     }
     return { pins: [...pins.values()], owner: profileFromPage() };
   }
-  if (message.type === "resolve") {
+  if (["resolveRecipe", "resolveReviews"].includes(message.type)) {
     if (/login|checkpoint|challenge/i.test(location.href + document.title)) {
-      return { blocked: true, reason: "Pinterest login or checkpoint detected" };
+      return {
+        blocked: true,
+        reason: "Pinterest login or checkpoint detected",
+      };
     }
-    const complete = await expandThreads();
     const owner = profileFromPage();
     const outbound = [...document.querySelectorAll("a[href^='http']")].find(
-      (link) =>
-        !/pinterest\.com|pinimg\.com/.test(new URL(link.href).hostname),
+      (link) => !/pinterest\.com|pinimg\.com/.test(new URL(link.href).hostname),
     );
+    if (message.type === "resolveRecipe") {
+      return {
+        owner,
+        pin_url: location.href,
+        board_url: message.pin.board_urls?.[0] || "",
+        source_url: outbound?.href || "",
+      };
+    }
+    const complete = await expandThreads();
     return {
       owner,
       pin_url: location.href,
-      board_url: message.pin.board_url,
-      source_url: outbound?.href || "",
       comments: collectComments(owner),
       comments_complete: complete,
     };

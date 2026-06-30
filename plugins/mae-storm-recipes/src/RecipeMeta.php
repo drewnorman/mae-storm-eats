@@ -18,6 +18,8 @@ final class RecipeMeta implements ServiceProviderInterface
     public const META_IMPORT_STATUS = '_mae_storm_recipe_import_status';
     public const META_IMPORT_ERRORS = '_mae_storm_recipe_import_errors';
     public const META_STRUCTURED_DATA = '_mae_storm_recipe_structured_data';
+    public const META_PINTEREST_SYNC_STATUS = '_mae_storm_recipe_pinterest_sync_status';
+    public const META_PINTEREST_SYNCED_AT = '_mae_storm_recipe_pinterest_synced_at';
 
     public function register(): void
     {
@@ -108,6 +110,25 @@ final class RecipeMeta implements ServiceProviderInterface
         ]);
 
         $this->registerStringListMeta(self::META_IMPORT_ERRORS, 'Importer warnings or errors retained for review.');
+
+        register_post_meta(ContentTypes::POST_TYPE_RECIPE, self::META_PINTEREST_SYNC_STATUS, [
+            'type' => 'string',
+            'description' => 'Pinterest browser synchronization state, independent of editorial workflow.',
+            'single' => true,
+            'default' => '',
+            'show_in_rest' => ['schema' => ['type' => 'string', 'enum' => ['', 'pending', 'complete', 'failed']]],
+            'auth_callback' => [$this, 'canEditPostMeta'],
+            'sanitize_callback' => 'sanitize_key',
+        ]);
+        register_post_meta(ContentTypes::POST_TYPE_RECIPE, self::META_PINTEREST_SYNCED_AT, [
+            'type' => 'string',
+            'description' => 'Timestamp of the last successfully finalized Pinterest synchronization.',
+            'single' => true,
+            'default' => '',
+            'show_in_rest' => true,
+            'auth_callback' => [$this, 'canEditPostMeta'],
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
 
         register_post_meta(ContentTypes::POST_TYPE_RECIPE, self::META_STRUCTURED_DATA, [
             'type' => 'object',

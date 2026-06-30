@@ -1,32 +1,209 @@
-const API = "https://recipes.maestorm.com/wp-json/mae-storm-recipes/v1";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let activeRun = false;
+let activeVerification = null;
+let activeController = null;
+let activePinTabId = null;
+
+const IMPORT_ALARM = "mae-storm-import-pump";
+const CHECKPOINT_VERSION = 4;
+const BATCH_SIZE = 10;
+const PIN_DELAY_MS = 30000;
+const JSON_TIMEOUT_MS = 20000;
+const PHOTO_TIMEOUT_MS = 30000;
+const MEDIA_TIMEOUT_MS = 60000;
+
+const permissionMessage =
+  "Firefox permission is required to connect to this WordPress site. Choose Connect to try again.";
+
+function permissionOrigin(origin) {
+  return `${origin}/*`;
+}
+
+async function setConnection(patch) {
+  const { connection = {} } = await browser.storage.local.get("connection");
+  const next = { ...connection, ...patch, updatedAt: new Date().toISOString() };
+  await browser.storage.local.set({ connection: next });
+  browser.runtime
+    .sendMessage({ type: "connectionState", connection: next })
+    .catch(() => {});
+  return next;
+}
+
+async function performVerification(expected) {
+  await setConnection({
+    ...expected,
+    state: "verifying",
+    message: "Verifying connection…",
+    verifiedAt: null,
+  });
+  try {
+    const status = await api("/pinterest-imports/status");
+    if (!status.authenticated)
+      throw new Error("WordPress did not authenticate these credentials.");
+    return setConnection({
+      ...expected,
+      state: "verified",
+      message: "WordPress connection verified.",
+      verifiedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return setConnection({
+      ...expected,
+      state: "failed",
+      message: connectionVerificationMessage(error),
+      verifiedAt: null,
+    });
+  }
+}
+
+function connectionVerificationMessage(error) {
+  if (
+    ["invalid_username", "invalid_email", "incorrect_password"].includes(
+      error.code,
+    )
+  )
+    return "WordPress did not accept this username and Application Password.";
+  if (
+    [
+      "application_passwords_disabled",
+      "application_passwords_disabled_for_user",
+    ].includes(error.code)
+  )
+    return "Application Passwords are not available for this WordPress account. Check the site configuration and try again.";
+  if (error.status === 401)
+    return "WordPress received the request but did not authenticate it. Check that Application Password authentication is enabled for the import endpoint.";
+  if (error.status === 403)
+    return "This WordPress account does not have permission to import recipes. Assign it the Recipe Importer role and try again.";
+  if (error.status === 404)
+    return "The WordPress import endpoint was not found. Confirm the Mae Storm Recipes plugin is active and try again.";
+  if (Number.isInteger(error.status))
+    return `WordPress could not verify the connection (HTTP ${error.status}). Check the site and try again.`;
+  return error.message || "Connection verification failed.";
+}
+
+function verifyConnection(expected) {
+  const key = `${expected.origin}\n${expected.username}`;
+  if (activeVerification?.key === key) return activeVerification.promise;
+  if (activeVerification)
+    return activeVerification.promise.then(() => verifyConnection(expected));
+  const promise = performVerification(expected).finally(() => {
+    if (activeVerification?.promise === promise) activeVerification = null;
+  });
+  activeVerification = { key, promise };
+  return promise;
+}
+
+async function prepareVerification(settings) {
+  await browser.storage.local.set({ settings });
+  const expected = {
+    origin: settings.wordpressHost,
+    username: settings.username,
+  };
+  await setConnection({
+    ...expected,
+    state: "pending",
+    message: "Waiting for Firefox site permission…",
+    verifiedAt: null,
+  });
+  if (
+    await browser.permissions.contains({
+      origins: [permissionOrigin(expected.origin)],
+    })
+  )
+    return verifyConnection(expected);
+}
+
+async function reconcileConnection() {
+  const { connection = {} } = await browser.storage.local.get("connection");
+  if (connection.state !== "pending" || !connection.origin) return connection;
+  if (
+    await browser.permissions.contains({
+      origins: [permissionOrigin(connection.origin)],
+    })
+  )
+    return verifyConnection({
+      origin: connection.origin,
+      username: connection.username,
+    });
+  return setConnection({
+    state: "failed",
+    message: permissionMessage,
+    verifiedAt: null,
+  });
+}
 
 async function credentials() {
   const { settings = {} } = await browser.storage.local.get("settings");
-  if (!settings.username || !settings.applicationPassword) {
+  if (!settings.wordpressHost)
+    throw new Error("WordPress site URL is not configured.");
+  if (!settings.username || !settings.applicationPassword)
     throw new Error("WordPress service credentials are not configured.");
-  }
   return {
     ...settings,
     authorization: `Basic ${btoa(`${settings.username}:${settings.applicationPassword}`)}`,
   };
 }
 
+async function timedFetch(url, options = {}, timeoutMs = JSON_TIMEOUT_MS) {
+  const controller = new AbortController();
+  activeController = controller;
+  const timeout = setTimeout(() => controller.abort("timeout"), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const aborted = new Error(
+        controller.signal.reason === "pause"
+          ? "Import paused."
+          : `Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`,
+      );
+      aborted.failureKind =
+        controller.signal.reason === "pause" ? "paused" : "timeout";
+      throw aborted;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    if (activeController === controller) activeController = null;
+  }
+}
+
 async function api(path, options = {}) {
   const auth = await credentials();
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      Authorization: auth.authorization,
-      ...(options.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      ...options.headers,
-    },
-  });
+  let response;
+  try {
+    response = await timedFetch(
+      `${auth.wordpressHost}/wp-json/mae-storm-recipes/v1${path}`,
+      {
+        ...options,
+        credentials: "omit",
+        headers: {
+          Authorization: auth.authorization,
+          ...(options.body instanceof FormData
+            ? {}
+            : { "Content-Type": "application/json" }),
+          ...options.headers,
+        },
+      },
+      options.body instanceof FormData ? MEDIA_TIMEOUT_MS : JSON_TIMEOUT_MS,
+    );
+  } catch (cause) {
+    if (cause.failureKind) throw cause;
+    const error = new Error(
+      `Could not connect to ${auth.wordpressHost}. Check the URL and confirm WordPress is running.`,
+    );
+    error.failureKind = "connection";
+    throw error;
+  }
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || `WordPress returned ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(
+      body.message || `WordPress returned ${response.status}`,
+    );
+    error.status = response.status;
+    error.code = typeof body.code === "string" ? body.code : "";
+    throw error;
+  }
   return body;
 }
 
@@ -38,95 +215,515 @@ async function setRun(patch) {
   return next;
 }
 
+async function refreshInventory() {
+  const { run = {} } = await browser.storage.local.get("run");
+  if (Array.isArray(run.legacyPins) && run.legacyPins.length) {
+    await api("/pinterest-imports/pins", {
+      method: "POST",
+      body: JSON.stringify({ pins: run.legacyPins }),
+    });
+    await setRun({ legacyPins: [] });
+  }
+  const status = await api("/pinterest-imports/status");
+  return setRun({ inventory: status.stages || {} });
+}
+
+function normalizeBoardUrl(value) {
+  const url = new URL(value);
+  url.hash = "";
+  url.search = "";
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/`;
+  return url.href;
+}
+
+async function boardBinding(tabId) {
+  const tab = await browser.tabs.get(tabId);
+  if (!Number.isInteger(tab.id) || !Number.isInteger(tab.windowId))
+    throw new Error("The Pinterest board tab is no longer available.");
+  if (!isPinterestPage(tab.url) || /\/pin\/\d+/.test(new URL(tab.url).pathname))
+    throw new Error("Open a Pinterest board before capturing pins.");
+  return {
+    boardUrl: normalizeBoardUrl(tab.url),
+    boardTabId: tab.id,
+    windowId: tab.windowId,
+  };
+}
+
+function isPinterestPage(url) {
+  try {
+    const page = new URL(url);
+    return page.protocol === "https:" && page.hostname === "www.pinterest.com";
+  } catch {
+    return false;
+  }
+}
+
+function collectorUnavailable(message) {
+  const error = new Error(message);
+  error.failureKind = "collector_unavailable";
+  return error;
+}
+
+async function waitForTabReady(tab, timeoutMs = 30000) {
+  if (tab.status === "complete" && isPinterestPage(tab.url)) return tab;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      browser.tabs.onUpdated.removeListener(listener);
+      callback();
+    };
+    const check = (current) => {
+      if (current.status === "complete" && isPinterestPage(current.url))
+        finish(() => resolve(current));
+    };
+    const listener = (tabId, change, current) => {
+      if (tabId === tab.id && change.status === "complete") check(current);
+    };
+    const timeout = setTimeout(
+      () =>
+        finish(() =>
+          reject(
+            collectorUnavailable(
+              "Pinterest pin page did not finish loading on an allowed URL.",
+            ),
+          ),
+        ),
+      timeoutMs,
+    );
+    browser.tabs.onUpdated.addListener(listener);
+    browser.tabs
+      .get(tab.id)
+      .then(check)
+      .catch((error) => finish(() => reject(error)));
+  });
+}
+
+async function waitForCollector(tabId, timeoutMs = 10000, intervalMs = 250) {
+  const deadline = Date.now() + timeoutMs;
+  let currentUrl = "";
+  while (Date.now() < deadline) {
+    const current = await browser.tabs.get(tabId);
+    currentUrl = current.url || "";
+    if (!isPinterestPage(currentUrl))
+      throw collectorUnavailable(
+        `Pinterest redirected the pin tab to an unsupported URL: ${currentUrl || "unknown"}`,
+      );
+    try {
+      const response = await browser.tabs.sendMessage(tabId, { type: "ping" });
+      if (response?.ready) return response;
+    } catch {}
+    await delay(intervalMs);
+  }
+  throw collectorUnavailable(
+    `Pinterest collector did not start for ${currentUrl || "the pin tab"}.`,
+  );
+}
+
 async function uploadPhotos(pin, result) {
   for (const comment of result.comments || []) {
     for (const photo of comment.photos || []) {
-      const key = `${pin.pin_id}:${comment.id}:${photo.id}`;
-      const { media = {} } = await browser.storage.local.get("media");
-      if (media[key]?.complete) continue;
-      try {
-        const photoResponse = await fetch(photo.url, { credentials: "include" });
-        if (!photoResponse.ok) throw new Error(`Photo returned ${photoResponse.status}`);
-        const form = new FormData();
-        form.append("photo", await photoResponse.blob(), `${photo.id}.jpg`);
-        await api(`/pinterest-imports/${pin.pin_id}/comments/${encodeURIComponent(comment.id)}/media`, {
-          method: "POST",
-          body: form,
-        });
-        media[key] = { complete: true };
-      } catch (error) {
-        media[key] = { complete: false, error: error.message };
-      }
-      await browser.storage.local.set({ media });
+      const response = await timedFetch(
+        photo.url,
+        { credentials: "include" },
+        PHOTO_TIMEOUT_MS,
+      );
+      if (!response.ok) throw new Error(`Photo returned ${response.status}`);
+      const form = new FormData();
+      form.append("photo", await response.blob(), `${photo.id}.jpg`);
+      form.append("photo_id", photo.id);
+      await api(
+        `/pinterest-imports/${pin.pin_id}/comments/${encodeURIComponent(comment.id)}/media`,
+        { method: "POST", body: form },
+      );
     }
   }
 }
 
-async function resolvePin(pin) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    let tab;
-    try {
-      tab = await browser.tabs.create({ url: pin.pin_url, active: false });
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Pin load timed out")), 30000);
-        const listener = (tabId, change) => {
-          if (tabId === tab.id && change.status === "complete") {
-            clearTimeout(timeout);
-            browser.tabs.onUpdated.removeListener(listener);
-            resolve();
-          }
-        };
-        browser.tabs.onUpdated.addListener(listener);
-      });
-      const result = await browser.tabs.sendMessage(tab.id, { type: "resolve", pin });
-      if (result.blocked) throw new Error(result.reason);
-      await api(`/pinterest-imports/${pin.pin_id}/resolve`, {
-        method: "POST",
-        body: JSON.stringify(result),
-      });
-      await uploadPhotos(pin, result);
-      return { status: result.comments_complete ? "complete" : "incomplete" };
-    } catch (error) {
-      if (attempt === 3 || /login|checkpoint/i.test(error.message)) {
-        return { status: "failed", error: error.message };
-      }
-      await delay(2000 * attempt);
-    } finally {
-      if (tab?.id) await browser.tabs.remove(tab.id).catch(() => {});
-    }
-  }
-}
-
-async function runImport(tabId) {
+async function captureBoard(tabId) {
   if (activeRun) return;
   activeRun = true;
   try {
-    await setRun({ cancelled: false, status: "discovering" });
-    const discovery = await browser.tabs.sendMessage(tabId, { type: "discover" });
-    if (discovery.cancelled) return setRun({ status: "cancelled" });
-    const response = await api("/pinterest-imports", {
-      method: "POST",
-      body: JSON.stringify({ pins: discovery.pins }),
+    const binding = await boardBinding(tabId);
+    await setRun({
+      version: CHECKPOINT_VERSION,
+      kind: "capture",
+      status: "capturing",
+      phase: "discovering",
+      ...binding,
+      discovered: 0,
+      completed: 0,
+      failed: 0,
+      error: "",
+      pauseRequested: false,
     });
-    const actions = new Map(response.instructions.map((item) => [item.pin_id, item]));
-    const queue = discovery.pins.filter((pin) => actions.get(pin.pin_id)?.action === "resolve");
-    await setRun({ status: "resolving", pins: discovery.pins, queue, completed: 0 });
-    for (let index = 0; index < queue.length; index += 1) {
-      const { run } = await browser.storage.local.get("run");
-      if (run.cancelled) return setRun({ status: "cancelled" });
-      if (index > 0) await delay(2000);
-      const outcome = await resolvePin(queue[index]);
-      const results = { ...(run.results || {}), [queue[index].pin_id]: outcome };
-      await setRun({ completed: index + 1, results });
-    }
-    await setRun({ status: "complete" });
+    const discovery = await browser.tabs.sendMessage(tabId, {
+      type: "discover",
+    });
+    if (discovery.paused) return pauseRun();
+    if (!Array.isArray(discovery.pins) || discovery.pins.length === 0)
+      throw new Error(
+        "No Pinterest pins were discovered. Confirm this is a board page and its pins are visible.",
+      );
+    await api("/pinterest-imports/pins", {
+      method: "POST",
+      body: JSON.stringify({
+        pins: discovery.pins,
+        owner: discovery.owner || {},
+      }),
+    });
+    await setRun({
+      status: "complete",
+      phase: "complete",
+      completed: discovery.pins.length,
+      discovered: discovery.pins.length,
+      message: `${discovery.pins.length} pins captured.`,
+    });
+    await refreshInventory();
+  } catch (error) {
+    await pauseRun(error.message || "Pin capture paused unexpectedly.");
   } finally {
     activeRun = false;
   }
 }
 
+function globalFailure(error) {
+  return (
+    [401, 403, 404, 429].includes(error.status) ||
+    error.status >= 500 ||
+    ["owner_mismatch"].includes(error.code) ||
+    ["connection", "timeout"].includes(error.failureKind) ||
+    error.failureKind === "pinterest_blocked"
+  );
+}
+
+async function resolveStagePin(pin, run) {
+  let tab;
+  try {
+    tab = await browser.tabs.create({
+      url: pin.pin_url,
+      windowId: run.windowId,
+      active: false,
+    });
+    activePinTabId = tab.id;
+    await setRun({
+      phase: "loading_pin",
+      tempTabId: tab.id,
+      currentPin: pin.pin_id,
+    });
+    await browser.tabs.hide(tab.id).catch(() => {});
+    await waitForTabReady(tab);
+    await waitForCollector(tab.id);
+    const result = await browser.tabs.sendMessage(tab.id, {
+      type: run.stage === "recipe" ? "resolveRecipe" : "resolveReviews",
+      pin,
+    });
+    if (result?.blocked) {
+      const error = new Error(
+        result.reason || "Pinterest login or checkpoint detected.",
+      );
+      error.failureKind = "pinterest_blocked";
+      throw error;
+    }
+    if (run.stage === "recipe") {
+      const response = await api(`/pinterest-imports/${pin.pin_id}/recipe`, {
+        method: "POST",
+        body: JSON.stringify(result),
+      });
+      return {
+        status: response.status === "complete" ? "complete" : "failed",
+        error: response.warnings?.join(" ") || "",
+      };
+    }
+    await api(`/pinterest-imports/${pin.pin_id}/reviews`, {
+      method: "POST",
+      body: JSON.stringify(result),
+    });
+    await uploadPhotos(pin, result);
+    if (!result.comments_complete)
+      throw new Error("Pinterest comments did not finish expanding.");
+    await api(`/pinterest-imports/${pin.pin_id}/finalize`, {
+      method: "POST",
+      body: JSON.stringify({ comments_complete: true }),
+    });
+    return { status: "complete", error: "" };
+  } catch (error) {
+    const latest = (await browser.storage.local.get("run")).run || {};
+    if (latest.pauseRequested) {
+      error.failureKind = "paused";
+      throw error;
+    }
+    if (error.failureKind === "paused" || globalFailure(error)) throw error;
+    await api(`/pinterest-imports/${pin.pin_id}/failure`, {
+      method: "POST",
+      body: JSON.stringify({
+        stage: run.stage,
+        error: error.message || "Pin processing failed.",
+      }),
+    }).catch(() => {});
+    return {
+      status: "failed",
+      error: error.message || "Pin processing failed.",
+    };
+  } finally {
+    if (tab?.id) await browser.tabs.remove(tab.id).catch(() => {});
+    if (activePinTabId === tab?.id) activePinTabId = null;
+    await setRun({ tempTabId: null });
+  }
+}
+
+async function schedulePump(delayMs = 0) {
+  await browser.alarms.create(IMPORT_ALARM, {
+    when: Date.now() + Math.max(delayMs, 100),
+  });
+}
+
+async function pauseRun(error = "") {
+  await browser.alarms.clear(IMPORT_ALARM);
+  return setRun({
+    status: "paused",
+    phase: "paused",
+    pauseRequested: false,
+    currentPin: null,
+    tempTabId: null,
+    nextPinAt: null,
+    error,
+  });
+}
+
+async function processQueue() {
+  const { run = {} } = await browser.storage.local.get("run");
+  if (run.pauseRequested) return pauseRun();
+  if (!Array.isArray(run.queue) || run.cursor >= run.queue.length) {
+    await browser.alarms.clear(IMPORT_ALARM);
+    await setRun({
+      status: "complete",
+      phase: "complete",
+      currentPin: null,
+      nextPinAt: null,
+      error: "",
+    });
+    return refreshInventory();
+  }
+  const pin = run.queue[run.cursor];
+  try {
+    await setRun({
+      status: "running",
+      phase: "loading_pin",
+      currentPin: pin.pin_id,
+      error: "",
+    });
+    const outcome = await resolveStagePin(pin, run);
+    const completed =
+      (run.completed || 0) + (outcome.status === "complete" ? 1 : 0);
+    const failed = (run.failed || 0) + (outcome.status === "failed" ? 1 : 0);
+    const cursor = run.cursor + 1;
+    if (cursor >= run.queue.length) {
+      await setRun({ cursor, completed, failed });
+      return schedulePump(100);
+    }
+    const nextPinAt = new Date(Date.now() + PIN_DELAY_MS).toISOString();
+    await setRun({
+      status: "waiting",
+      phase: "waiting",
+      cursor,
+      completed,
+      failed,
+      currentPin: null,
+      nextPinAt,
+    });
+    return schedulePump(PIN_DELAY_MS);
+  } catch (error) {
+    return pauseRun(
+      error.status === 429
+        ? "Pinterest or WordPress throttled the import. Wait before resuming."
+        : error.message || "The stage paused unexpectedly.",
+    );
+  }
+}
+
+async function startStage(stage, mode, tabId) {
+  if (activeRun) return;
+  activeRun = true;
+  try {
+    const tab = await browser.tabs.get(tabId);
+    const response = await api(
+      `/pinterest-imports/queue?stage=${encodeURIComponent(stage)}&mode=${encodeURIComponent(mode)}`,
+    );
+    const queue = Array.isArray(response.pins)
+      ? response.pins.slice(0, BATCH_SIZE)
+      : [];
+    await setRun({
+      version: CHECKPOINT_VERSION,
+      kind: "stage",
+      stage,
+      mode,
+      status: queue.length ? "running" : "complete",
+      phase: queue.length ? "queued" : "complete",
+      queue,
+      cursor: 0,
+      completed: 0,
+      failed: 0,
+      currentPin: null,
+      tempTabId: null,
+      windowId: tab.windowId,
+      nextPinAt: null,
+      pauseRequested: false,
+      error: queue.length ? "" : "No eligible pins in this queue.",
+    });
+    if (queue.length) await processQueue();
+    else await refreshInventory();
+  } catch (error) {
+    await pauseRun(error.message || "The stage could not start.");
+  } finally {
+    activeRun = false;
+  }
+}
+
+async function resumeRun(tabId) {
+  if (activeRun) return;
+  activeRun = true;
+  try {
+    const { run = {} } = await browser.storage.local.get("run");
+    if (run.kind === "capture") {
+      activeRun = false;
+      return captureBoard(tabId);
+    }
+    const tab = await browser.tabs.get(tabId);
+    await setRun({
+      windowId: tab.windowId,
+      status: "running",
+      phase: "queued",
+      pauseRequested: false,
+      error: "",
+    });
+    await processQueue();
+  } catch (error) {
+    await pauseRun(error.message || "The stage could not resume.");
+  } finally {
+    activeRun = false;
+  }
+}
+
+async function migrateCheckpoint() {
+  const { run = {} } = await browser.storage.local.get("run");
+  if (run.version === CHECKPOINT_VERSION) return run;
+  if (run.version === 3 && Array.isArray(run.pins) && run.pins.length) {
+    try {
+      await api("/pinterest-imports/pins", {
+        method: "POST",
+        body: JSON.stringify({ pins: run.pins }),
+      });
+    } catch {
+      const migrated = {
+        version: CHECKPOINT_VERSION,
+        kind: "idle",
+        status: "paused",
+        phase: "paused",
+        legacyPins: run.pins,
+        inventory: {},
+        error:
+          "Connect to WordPress to finish moving the previous pin list into the staged importer.",
+      };
+      await browser.storage.local.set({ run: migrated });
+      return migrated;
+    }
+  }
+  const migrated = {
+    version: CHECKPOINT_VERSION,
+    kind: "idle",
+    status: "ready",
+    phase: "ready",
+    inventory: {},
+    message: run.version
+      ? "Previous captured pins were moved to the staged importer."
+      : "",
+  };
+  await browser.storage.local.set({ run: migrated });
+  return migrated;
+}
+
+async function wakeWorker() {
+  if (activeRun) return;
+  const run = await migrateCheckpoint();
+  if (!["running", "waiting"].includes(run.status) || run.kind !== "stage")
+    return;
+  activeRun = true;
+  try {
+    await processQueue();
+  } finally {
+    activeRun = false;
+  }
+}
+
+browser.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === IMPORT_ALARM) return wakeWorker();
+});
+browser.runtime.onStartup.addListener(async () => {
+  const run = await migrateCheckpoint();
+  if (["running", "waiting", "capturing"].includes(run.status))
+    await pauseRun("Firefox restarted. Resume the staged import when ready.");
+});
+
 browser.runtime.onMessage.addListener(async (message) => {
-  if (message.type === "status") return api("/pinterest-imports/status");
-  if (message.type === "start") return runImport(message.tabId);
-  if (message.type === "cancel") return setRun({ cancelled: true });
+  if (message.type === "prepareVerification")
+    return prepareVerification(message.settings);
+  if (message.type === "connectionStatus") return reconcileConnection();
+  if (message.type === "permissionDenied")
+    return setConnection({
+      state: "failed",
+      message: permissionMessage,
+      verifiedAt: null,
+    });
+  if (message.type === "status") return refreshInventory();
+  if (message.type === "discoveryProgress") {
+    const { run = {} } = await browser.storage.local.get("run");
+    if (run.status === "capturing")
+      return setRun({
+        discovered: message.discovered,
+        discoveryStable: message.stable,
+      });
+  }
+  if (message.type === "capture") return captureBoard(message.tabId);
+  if (message.type === "startStage")
+    return startStage(message.stage, message.mode || "pending", message.tabId);
+  if (message.type === "resume") return resumeRun(message.tabId);
+  if (message.type === "pause") {
+    const { run = {} } = await browser.storage.local.get("run");
+    await setRun({ pauseRequested: true, status: "pause_requested" });
+    activeController?.abort("pause");
+    if (activePinTabId) {
+      await browser.tabs.remove(activePinTabId).catch(() => {});
+      activePinTabId = null;
+    }
+    if (["waiting", "retry_wait"].includes(run.status)) return pauseRun();
+  }
+});
+
+browser.permissions.onAdded.addListener(async (permissions) => {
+  const { connection = {} } = await browser.storage.local.get("connection");
+  if (
+    connection.origin &&
+    permissions.origins?.includes(permissionOrigin(connection.origin))
+  )
+    await verifyConnection({
+      origin: connection.origin,
+      username: connection.username,
+    });
+});
+browser.permissions.onRemoved.addListener(async (permissions) => {
+  const { connection = {} } = await browser.storage.local.get("connection");
+  if (
+    connection.state === "verified" &&
+    connection.origin &&
+    permissions.origins?.includes(permissionOrigin(connection.origin))
+  )
+    await setConnection({
+      state: "failed",
+      message:
+        "Firefox site permission was removed. Edit the connection to grant it again.",
+      verifiedAt: null,
+    });
 });

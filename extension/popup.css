@@ -1,7 +1,262 @@
-body { font: 14px system-ui, sans-serif; width: 320px; margin: 0; color: #303029; }
-main { padding: 16px; }
-h1 { font-size: 18px; margin-top: 0; }
-label { display: grid; gap: 4px; margin: 10px 0; }
-input, button { font: inherit; padding: 8px; }
-.actions { display: flex; gap: 8px; margin-top: 12px; }
-progress { width: 100%; margin-top: 12px; }
+/* Source of truth: semantic palette in the website Tailwind theme. */
+:root {
+  --sand: #f6c787;
+  --olive: #5e5c36;
+  --plum: #996d83;
+  --coral: #ee9e60;
+  --cream: #fff0d2;
+  --white: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--sand);
+  color: var(--olive);
+  font:
+    14px/1.4 system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+body.setup-page {
+  width: auto;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.setup-page main {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+main {
+  padding: 18px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 6px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+h2,
+.eyebrow,
+label,
+.progress-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin-bottom: 2px;
+  color: var(--plum);
+}
+
+.description {
+  margin-bottom: 16px;
+}
+
+.credentials,
+.run,
+.feedback {
+  border-top: 2px solid var(--coral);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+label {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+
+.credential-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.verified-summary {
+  padding: 10px;
+  background: var(--cream);
+}
+
+.verified-summary p {
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+
+.verified-summary strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+input,
+button {
+  max-width: 100%;
+  border-radius: 1px;
+  font: inherit;
+}
+
+input {
+  width: 100%;
+  border: 2px solid var(--coral);
+  background: var(--white);
+  color: #262619;
+  padding: 9px;
+}
+
+button {
+  border: 2px solid transparent;
+  padding: 9px 11px;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+button:focus-visible,
+input:focus-visible,
+progress:focus-visible {
+  outline: 3px solid var(--coral);
+  outline-offset: 2px;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.verify {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border-color: var(--plum);
+  background: var(--white);
+  color: var(--plum);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner[hidden] {
+  display: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.5s;
+  }
+}
+
+.actions {
+  display: grid;
+  gap: 8px;
+}
+
+.stage {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--coral) 60%, transparent);
+}
+
+.stage > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.stage span {
+  font-size: 12px;
+}
+
+.stage-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stage-secondary button {
+  padding: 7px 5px;
+  font-size: 12px;
+}
+
+.run-controls {
+  margin-top: 10px;
+}
+
+.primary {
+  background: var(--olive);
+  color: var(--white);
+}
+
+.cancel,
+.secondary {
+  border-color: var(--plum);
+  background: transparent;
+  color: var(--olive);
+}
+
+button:hover {
+  filter: brightness(0.94);
+}
+
+.status {
+  min-height: 2.8em;
+  overflow-wrap: anywhere;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+#connection-message {
+  min-height: 0;
+  margin: 14px 0 0;
+}
+
+.progress-label {
+  display: block;
+  margin: 0 0 5px;
+}
+
+progress {
+  width: 100%;
+  height: 12px;
+  accent-color: var(--plum);
+}

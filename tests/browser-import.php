@@ -5,10 +5,12 @@ declare(strict_types=1);
 use MaeStorm\Recipes\RecipeJsonLd;
 use MaeStorm\Recipes\RecipeImages;
 use MaeStorm\Recipes\RecipeImporter;
+use MaeStorm\Recipes\BrowserImport;
 use MaeStorm\Recipes\ReviewReconciler;
 use MaeStorm\Recipes\ReviewMeta;
 use MaeStorm\Recipes\RecipeMeta;
 use MaeStorm\Recipes\SourceFetcher;
+use MaeStorm\Recipes\PinImportStore;
 
 /** @var array<string,array<string,mixed>> */
 $registeredPostMeta = [];
@@ -46,14 +48,42 @@ function __(string $value, string $domain = ''): string
 /** @param array<string,mixed> $post */
 function wp_insert_post(array $post, bool $return_error = false): int
 {
-    unset($post, $return_error);
-    return 42;
+    unset($return_error);
+    $id = ($post['post_type'] ?? '') === 'pinterest_import' ? 84 : 42;
+    $GLOBALS['insertedPosts'][$id] = $post;
+    return $id;
 }
 
 function update_post_meta(int $post_id, string $key, mixed $value): bool
 {
     $GLOBALS['updatedPostMeta'][$post_id][$key] = $value;
     return true;
+}
+
+function get_post_meta(int $post_id, string $key, bool $single = false): mixed
+{
+    unset($single);
+    return $GLOBALS['updatedPostMeta'][$post_id][$key] ?? '';
+}
+
+/** @param array<string,mixed> $args @return list<int> */
+function get_posts(array $args): array
+{
+    if (($args['post_type'] ?? '') !== 'pinterest_import' || ! isset($GLOBALS['insertedPosts'][84])) {
+        return [];
+    }
+    $matches = static function (array $clause): bool {
+        return (string) get_post_meta(84, (string) ($clause['key'] ?? ''), true) === (string) ($clause['value'] ?? '');
+    };
+    if (isset($args['meta_key']) && ! $matches(['key' => $args['meta_key'], 'value' => $args['meta_value'] ?? ''])) {
+        return [];
+    }
+    foreach ((array) ($args['meta_query'] ?? []) as $clause) {
+        if (is_array($clause) && ! $matches($clause)) {
+            return [];
+        }
+    }
+    return [84];
 }
 
 function has_post_thumbnail(int $post_id): bool
@@ -78,6 +108,11 @@ function wp_parse_url(string $url): array|false
     return parse_url($url);
 }
 
+function rest_get_url_prefix(): string
+{
+    return 'wp-json';
+}
+
 final class WP_Error
 {
     public function __construct(public string $code, public string $message = '')
@@ -97,8 +132,10 @@ require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ReviewReconciler.php';
 require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ServiceProviderInterface.php';
 require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ContentTypes.php';
 require_once __DIR__ . '/../plugins/mae-storm-recipes/src/RecipeMeta.php';
+require_once __DIR__ . '/../plugins/mae-storm-recipes/src/BrowserImport.php';
 require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ReviewMeta.php';
 require_once __DIR__ . '/../plugins/mae-storm-recipes/src/SourceFetcher.php';
+require_once __DIR__ . '/../plugins/mae-storm-recipes/src/PinImportStore.php';
 
 function assertSameValue(mixed $expected, mixed $actual, string $message): void
 {
@@ -106,6 +143,20 @@ function assertSameValue(mixed $expected, mixed $actual, string $message): void
         throw new RuntimeException($message . "\nExpected: " . var_export($expected, true) . "\nActual: " . var_export($actual, true));
     }
 }
+
+$browserImport = new BrowserImport();
+$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-recipes/v1/pinterest-imports/status';
+assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Pretty import REST routes must allow Application Password authentication.');
+$_SERVER['REQUEST_URI'] = '/blog/wp-json/mae-storm-recipes/v1/pinterest-imports/123/resolve';
+assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Import REST routes under a subdirectory must allow Application Password authentication.');
+$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-recipes/v1/pinterest-imports-elsewhere';
+assertSameValue(false, $browserImport->allowApplicationPassword(false), 'Similar route names must not enable Application Password authentication.');
+$_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/users';
+assertSameValue(false, $browserImport->allowApplicationPassword(false), 'Unrelated REST routes must not enable Application Password authentication.');
+$_GET['rest_route'] = '/mae-storm-recipes/v1/pinterest-imports';
+assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Query-parameter import REST routes must allow Application Password authentication.');
+assertSameValue(true, $browserImport->allowApplicationPassword(true), 'Prior API request classification must be preserved.');
+unset($_GET['rest_route'], $_SERVER['REQUEST_URI']);
 
 $extractor = new RecipeJsonLd();
 $variants = [
@@ -150,6 +201,27 @@ assertSameValue(false, $reconciler->hasIdentity(['id' => '', 'username' => '  ']
 assertSameValue(true, $reconciler->isOwner(['username' => 'mae'], $owner), 'Owner username must match.');
 assertSameValue(false, $reconciler->isOwner(['username' => 'other'], $owner), 'Other users must be excluded.');
 
+$pinStore = new PinImportStore();
+$pinImport = $pinStore->capture([
+    'pin_id' => '123',
+    'pin_url' => 'https://www.pinterest.com/pin/123/',
+    'board_url' => 'https://www.pinterest.com/mae/recipes/',
+], $owner);
+assertSameValue(84, $pinImport, 'Pin capture must create a durable inventory record.');
+$pinStore->capture([
+    'pin_id' => '123',
+    'pin_url' => 'https://www.pinterest.com/pin/123/',
+    'board_url' => 'https://www.pinterest.com/mae/favorites/',
+], $owner);
+assertSameValue(2, count($updatedPostMeta[84][PinImportStore::META_BOARD_URLS] ?? []), 'Recapture must merge board provenance.');
+assertSameValue(1, $pinStore->counts()['recipe']['pending'], 'Captured pins must enter the recipe queue.');
+assertSameValue(0, $pinStore->counts()['reviews']['pending'], 'Reviews must not be eligible before recipe completion.');
+$pinStore->completeRecipe('123', 42, 'https://example.com/soup');
+assertSameValue(1, $pinStore->counts()['recipe']['complete'], 'Recipe completion must update its independent stage.');
+assertSameValue(1, $pinStore->counts()['reviews']['pending'], 'Recipe completion must make reviews eligible.');
+$pinStore->fail('123', 'reviews', 'Try later');
+assertSameValue('123', $pinStore->queue('reviews', 'retry')[0]['pin_id'] ?? '', 'Failed reviews must be available only from the retry queue.');
+
 $reviewMeta = new ReviewMeta();
 $reviewMeta->registerMeta();
 $photoSchema = $registeredPostMeta[ReviewMeta::META_PHOTO_MANIFEST]['show_in_rest']['schema'] ?? [];
@@ -159,6 +231,9 @@ assertSameValue('integer', $attachmentSchema['items']['type'] ?? null, 'Attachme
 
 (new RecipeMeta())->registerMeta();
 assertSameValue('string', $registeredPostMeta[RecipeMeta::META_SERVINGS]['type'] ?? null, 'Recipe yield meta must preserve source text.');
+assertSameValue('string', $registeredPostMeta[RecipeMeta::META_PINTEREST_SYNC_STATUS]['type'] ?? null, 'Pinterest sync status must be stored separately from editorial status.');
+assertSameValue('string', $registeredPostMeta[RecipeMeta::META_PINTEREST_SYNCED_AT]['type'] ?? null, 'The last successful Pinterest sync timestamp must be registered.');
+
 $fetcher = new SourceFetcher();
 assertSameValue('private_source_address', $fetcher->validateUrl('http://127.0.0.1/')->code, 'Loopback sources must be rejected.');
 assertSameValue('invalid_source_url', $fetcher->validateUrl('file:///etc/passwd')->code, 'Non-HTTP sources must be rejected.');

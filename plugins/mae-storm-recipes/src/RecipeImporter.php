@@ -81,6 +81,30 @@ final class RecipeImporter
         return $errors;
     }
 
+    /** @param array<string,mixed> $candidate */
+    public function updateCandidate(int $post_id, array $candidate): void
+    {
+        $title = sanitize_text_field((string) ($candidate['title'] ?? ''));
+        wp_update_post(array_filter([
+            'ID' => $post_id,
+            'post_title' => $title,
+            'post_content' => $this->candidateContent($candidate),
+        ], static fn (mixed $value): bool => $value !== ''));
+        update_post_meta($post_id, RecipeMeta::META_SOURCE_URLS, $this->stringList($candidate['source_urls'] ?? []));
+        update_post_meta($post_id, RecipeMeta::META_IMAGES, $this->images($candidate));
+        update_post_meta($post_id, RecipeMeta::META_SERVINGS, sanitize_text_field((string) ($candidate['recipe_yield'] ?? $candidate['servings'] ?? '')));
+        update_post_meta($post_id, RecipeMeta::META_PREP_TIME_MINUTES, absint($candidate['prep_time_minutes'] ?? 0));
+        update_post_meta($post_id, RecipeMeta::META_COOK_TIME_MINUTES, absint($candidate['cook_time_minutes'] ?? 0));
+        update_post_meta($post_id, RecipeMeta::META_TOTAL_TIME_MINUTES, absint($candidate['total_time_minutes'] ?? 0));
+        update_post_meta($post_id, RecipeMeta::META_STRUCTURED_DATA, [
+            'ingredients' => is_array($candidate['ingredients'] ?? null) ? $candidate['ingredients'] : [],
+            'steps' => is_array($candidate['steps'] ?? null) ? $candidate['steps'] : [],
+            'notes' => $this->stringList($candidate['notes'] ?? []),
+            'nutrition' => is_array($candidate['nutrition'] ?? null) ? $candidate['nutrition'] : [],
+            'raw' => is_array($candidate['raw'] ?? null) ? $candidate['raw'] : [],
+        ]);
+    }
+
     /**
      * @return list<array{post_id:int,title:string,match:string}>
      */

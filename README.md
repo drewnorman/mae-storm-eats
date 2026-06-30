@@ -7,6 +7,7 @@ This repository owns the app code and local development tooling:
 - First-party WordPress recipe plugin.
 - Timber-based WordPress theme.
 - Recipe import and review workflows.
+- Restricted Firefox WebExtension for Pinterest board imports.
 - Local Podman Compose environment.
 - App CI, release automation, and formatting checks.
 
@@ -51,6 +52,9 @@ The Compose stack expects the external `local-proxy` Podman network and its
 shared Traefik proxy to already be running. Theme assets are committed for the
 initial boot; run `corepack yarn dev` separately when working on theme CSS or
 JavaScript.
+
+Pinterest imports are performed from Firefox inside the owner's existing
+Pinterest session. See [docs/browser-import.md](docs/browser-import.md).
 
 ## Plugin And Theme Contract
 

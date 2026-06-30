@@ -8,16 +8,96 @@
   </head>
   <body>
     <main>
-      <h1>Pinterest import</h1>
-      <p id="message">Configure the restricted WordPress service account.</p>
-      <label>WordPress username <input id="username" autocomplete="username" /></label>
-      <label>Application Password <input id="password" type="password" autocomplete="current-password" /></label>
-      <button id="save">Save and verify</button>
-      <div class="actions">
-        <button id="start">Start / resume board</button>
-        <button id="cancel">Cancel</button>
-      </div>
-      <progress id="progress" value="0" max="1"></progress>
+      <header>
+        <p class="eyebrow">Mae Storm Eats</p>
+        <h1>Pinterest import</h1>
+        <p class="description">
+          Capture once, then import recipes and reviews in paced batches.
+        </p>
+      </header>
+
+      <section class="credentials" aria-labelledby="connection-heading">
+        <h2 id="connection-heading">Connection</h2>
+        <div id="connection-required">
+          <p>
+            Connect the restricted WordPress service account before importing.
+          </p>
+          <button id="open-setup" class="verify" type="button">
+            Open connection setup
+          </button>
+        </div>
+        <div id="verified-summary" class="verified-summary" hidden>
+          <p><strong>Site</strong> <span id="verified-origin"></span></p>
+          <p><strong>Username</strong> <span id="verified-username"></span></p>
+          <button id="edit-connection" class="verify" type="button">
+            Edit connection
+          </button>
+        </div>
+        <p id="connection-message" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="run" aria-labelledby="run-heading" hidden>
+        <h2 id="run-heading">Import stages</h2>
+        <article class="stage">
+          <div>
+            <strong>1. Capture pins</strong
+            ><span id="capture-count">Open a Pinterest board</span>
+          </div>
+          <button id="capture" class="primary" type="button">
+            Capture this board
+          </button>
+        </article>
+        <article class="stage">
+          <div>
+            <strong>2. Import recipes</strong
+            ><span id="recipe-count">0 ready</span>
+          </div>
+          <button id="recipes" class="primary" type="button">
+            Import next 10
+          </button>
+          <div class="stage-secondary">
+            <button id="retry-recipes" class="secondary" type="button">
+              Retry failed
+            </button>
+            <button id="refresh-recipes" class="secondary" type="button">
+              Refresh completed
+            </button>
+          </div>
+        </article>
+        <article class="stage">
+          <div>
+            <strong>3. Import reviews &amp; photos</strong
+            ><span id="review-count">0 ready</span>
+          </div>
+          <button id="reviews" class="primary" type="button">
+            Import next 10
+          </button>
+          <div class="stage-secondary">
+            <button id="retry-reviews" class="secondary" type="button">
+              Retry failed
+            </button>
+            <button id="refresh-reviews" class="secondary" type="button">
+              Refresh completed
+            </button>
+          </div>
+        </article>
+        <div class="actions run-controls">
+          <button id="pause" class="secondary" type="button" hidden>
+            Pause
+          </button>
+          <button id="resume" class="primary" type="button" hidden>
+            Resume
+          </button>
+        </div>
+      </section>
+
+      <section class="feedback" aria-live="polite" hidden>
+        <p id="message" class="status">
+          Configure the restricted WordPress service account.
+        </p>
+        <label class="progress-label" for="progress">Current batch</label>
+        <progress id="progress" value="0" max="1">0%</progress>
+      </section>
     </main>
     <script src="popup.js"></script>
   </body>

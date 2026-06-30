@@ -15,7 +15,45 @@ final class BrowserImport implements ServiceProviderInterface
 
     public function register(): void
     {
+        add_filter('application_password_is_api_request', [$this, 'allowApplicationPassword']);
         add_action('rest_api_init', [$this, 'routes']);
+    }
+
+    public function allowApplicationPassword(bool $is_api_request): bool
+    {
+        if ($is_api_request) {
+            return true;
+        }
+
+        $route = $_GET['rest_route'] ?? null;
+
+        if (! is_string($route)) {
+            $request_uri = $_SERVER['REQUEST_URI'] ?? null;
+
+            if (! is_string($request_uri)) {
+                return false;
+            }
+
+            $path = parse_url($request_uri, PHP_URL_PATH);
+
+            if (! is_string($path)) {
+                return false;
+            }
+
+            $prefix = '/' . rest_get_url_prefix();
+            $position = strpos($path, $prefix . '/');
+
+            if ($position === false) {
+                return false;
+            }
+
+            $route = substr($path, $position + strlen($prefix));
+        }
+
+        $route = '/' . ltrim(rawurldecode($route), '/');
+        $import_route = '/' . self::NAMESPACE . '/pinterest-imports';
+
+        return $route === $import_route || str_starts_with($route, $import_route . '/');
     }
 
     public function routes(): void
@@ -25,10 +63,28 @@ final class BrowserImport implements ServiceProviderInterface
             'methods' => 'GET', 'callback' => [$this, 'status'], 'permission_callback' => $permission,
         ]);
         register_rest_route(self::NAMESPACE, '/pinterest-imports', [
-            'methods' => 'POST', 'callback' => [$this, 'discover'], 'permission_callback' => $permission,
+            'methods' => 'POST', 'callback' => [$this, 'capture'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/pins', [
+            'methods' => 'POST', 'callback' => [$this, 'capture'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/queue', [
+            'methods' => 'GET', 'callback' => [$this, 'queue'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/recipe', [
+            'methods' => 'POST', 'callback' => [$this, 'resolve'], 'permission_callback' => $permission,
         ]);
         register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/resolve', [
             'methods' => 'POST', 'callback' => [$this, 'resolve'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/reviews', [
+            'methods' => 'POST', 'callback' => [$this, 'reviews'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/failure', [
+            'methods' => 'POST', 'callback' => [$this, 'failure'], 'permission_callback' => $permission,
+        ]);
+        register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/finalize', [
+            'methods' => 'POST', 'callback' => [$this, 'finalize'], 'permission_callback' => $permission,
         ]);
         register_rest_route(self::NAMESPACE, '/pinterest-imports/(?P<pin_id>[0-9]+)/comments/(?P<comment_id>[A-Za-z0-9_-]+)/media', [
             'methods' => 'POST', 'callback' => [$this, 'media'], 'permission_callback' => $permission,
@@ -44,45 +100,60 @@ final class BrowserImport implements ServiceProviderInterface
                 'reviews' => (int) wp_count_posts(ContentTypes::POST_TYPE_REVIEW)->publish,
             ],
             'last_import_at' => get_option('mae_storm_last_browser_import_at', ''),
+            'stages' => (new PinImportStore())->counts(),
         ]);
     }
 
-    public function discover(WP_REST_Request $request): WP_REST_Response|WP_Error
+    public function capture(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $pins = $request->get_param('pins');
         if (! is_array($pins) || count($pins) > 5000) {
             return new WP_Error('invalid_pins', 'pins must be an array containing at most 5000 items.', ['status' => 400]);
         }
-        $instructions = [];
+        $owner = $request->get_param('owner');
+        $owner = is_array($owner) ? $owner : [];
+        $store = new PinImportStore();
+        $captured = 0;
         foreach ($pins as $pin) {
-            $pin_id = preg_replace('/\D/', '', (string) (is_array($pin) ? ($pin['pin_id'] ?? '') : $pin));
-            if ($pin_id === '') {
+            if (! is_array($pin)) {
                 continue;
             }
-            $recipe = $this->findRecipeByPin($pin_id);
-            $status = $recipe ? (string) get_post_meta($recipe, RecipeMeta::META_IMPORT_STATUS, true) : '';
-            $instructions[] = [
-                'pin_id' => $pin_id,
-                'action' => $recipe && $status === 'reviewed' ? 'skip' : 'resolve',
-                'reason' => $recipe ? $status : 'new',
-            ];
+            $result = $store->capture($pin, $owner);
+            if (is_wp_error($result)) { return $result; }
+            $captured++;
         }
-        return new WP_REST_Response(['instructions' => $instructions]);
+        update_option('mae_storm_last_browser_import_at', gmdate('c'), false);
+        return new WP_REST_Response(['captured' => $captured, 'stages' => $store->counts()]);
+    }
+
+    public function queue(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $stage = sanitize_key((string) $request->get_param('stage'));
+        $mode = sanitize_key((string) $request->get_param('mode'));
+        if (! in_array($stage, ['recipe', 'reviews'], true) || ! in_array($mode, ['pending', 'retry', 'refresh'], true)) {
+            return new WP_Error('invalid_queue', 'stage and mode must identify a supported queue.', ['status' => 400]);
+        }
+        return new WP_REST_Response(['pins' => (new PinImportStore())->queue($stage, $mode, 10)]);
     }
 
     public function resolve(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $pin_id = (string) $request['pin_id'];
         $payload = $request->get_json_params();
-        if (! is_array($payload) || ! isset($payload['pin_url'], $payload['board_url'], $payload['owner'])) {
-            return new WP_Error('invalid_payload', 'pin_url, board_url, and owner are required.', ['status' => 400]);
-        }
-        $owner = $payload['owner'];
-        if (! is_array($owner) || ! (new ReviewReconciler())->hasIdentity($owner)) {
-            return new WP_Error('invalid_owner', 'Runtime owner identity is required.', ['status' => 400]);
+        if (! is_array($payload) || ! isset($payload['pin_url'])) {
+            return new WP_Error('invalid_payload', 'pin_url is required.', ['status' => 400]);
         }
 
         $source_url = esc_url_raw((string) ($payload['source_url'] ?? ''));
+        $store = new PinImportStore();
+        if ($store->get($pin_id) === null) {
+            $capture = $store->capture(['pin_id' => $pin_id, 'pin_url' => (string) $payload['pin_url'], 'board_url' => (string) ($payload['board_url'] ?? '')]);
+            if (is_wp_error($capture)) { return $capture; }
+        }
+        if ($source_url === '') {
+            $store->fail($pin_id, 'recipe', 'The pin did not expose a destination URL.');
+            return new WP_REST_Response(['pin_id' => $pin_id, 'status' => 'failed', 'warnings' => ['The pin did not expose a destination URL.']]);
+        }
         $recipe_id = $this->findRecipeByPin($pin_id);
         $normalized = [];
         $errors = [];
@@ -98,8 +169,6 @@ final class BrowserImport implements ServiceProviderInterface
                     $normalized = (new RecipeJsonLd())->normalize($recipe);
                 }
             }
-        } else {
-            $errors[] = 'The pin did not expose a destination URL.';
         }
 
         if (! $recipe_id && $source_url !== '') {
@@ -109,7 +178,7 @@ final class BrowserImport implements ServiceProviderInterface
             $result = (new RecipeImporter())->createCandidate([
                 ...$normalized,
                 'pinterest_pin_id' => $pin_id,
-                'pinterest_urls' => [(string) $payload['pin_url'], (string) $payload['board_url']],
+                'pinterest_urls' => array_values(array_filter([(string) $payload['pin_url'], (string) ($payload['board_url'] ?? '')])),
                 'source_urls' => $source_url !== '' ? [$source_url] : [],
                 'errors' => $errors,
             ]);
@@ -118,23 +187,108 @@ final class BrowserImport implements ServiceProviderInterface
             }
             $recipe_id = $result['post_id'];
         }
-        update_post_meta($recipe_id, RecipeMeta::META_IMPORT_STATUS, $errors === [] && ($normalized['ingredients'] ?? []) !== [] && ($normalized['steps'] ?? []) !== [] ? 'candidate' : 'needs_review');
+        $editorial_status = (string) get_post_meta($recipe_id, RecipeMeta::META_IMPORT_STATUS, true);
+        if ($editorial_status !== 'reviewed' && $normalized !== []) {
+            (new RecipeImporter())->updateCandidate($recipe_id, [
+                ...$normalized,
+                'source_urls' => [$source_url],
+            ]);
+        }
+        if ($editorial_status !== 'reviewed') {
+            update_post_meta($recipe_id, RecipeMeta::META_IMPORT_STATUS, $errors === [] && ($normalized['ingredients'] ?? []) !== [] && ($normalized['steps'] ?? []) !== [] ? 'candidate' : 'needs_review');
+        }
         update_post_meta($recipe_id, RecipeMeta::META_IMPORT_ERRORS, $errors);
-
-        $reconciler = new ReviewReconciler();
-        $review_results = [];
-        foreach (is_array($payload['comments'] ?? null) ? $payload['comments'] : [] as $comment) {
-            if (is_array($comment) && $reconciler->isOwner($comment['author'] ?? [], $owner)) {
-                $review_results[] = $reconciler->reconcile($recipe_id, $pin_id, $comment, $owner, (bool) ($payload['comments_complete'] ?? false));
-            }
+        $pin_record = $store->get($pin_id);
+        update_post_meta(
+            $recipe_id,
+            RecipeMeta::META_PINTEREST_SYNC_STATUS,
+            ($pin_record['reviews_status'] ?? '') === 'complete' ? 'complete' : 'pending'
+        );
+        if ($errors === []) {
+            $store->completeRecipe($pin_id, $recipe_id, $source_url);
+            (new RecipeImages())->useSchemaFallback($recipe_id);
+        } else {
+            $store->fail($pin_id, 'recipe', implode(' ', $errors));
         }
         update_option('mae_storm_last_browser_import_at', gmdate('c'), false);
-        update_option('mae_storm_last_browser_import_owner', array_intersect_key($owner, array_flip(['id', 'username', 'profile_url'])), false);
 
         return new WP_REST_Response([
-            'pin_id' => $pin_id, 'recipe_id' => $recipe_id, 'status' => get_post_meta($recipe_id, RecipeMeta::META_IMPORT_STATUS, true),
-            'reviews' => $review_results, 'warnings' => $errors,
+            'pin_id' => $pin_id, 'recipe_id' => $recipe_id, 'status' => $errors === [] ? 'complete' : 'failed',
+            'warnings' => $errors,
         ]);
+    }
+
+    public function reviews(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $pin_id = (string) $request['pin_id'];
+        $payload = $request->get_json_params();
+        $record = (new PinImportStore())->get($pin_id);
+        if (! is_array($payload) || $record === null || (int) $record['recipe_id'] < 1) {
+            return new WP_Error('recipe_not_imported', 'The recipe stage must complete before reviews.', ['status' => 409]);
+        }
+        $runtime_owner = is_array($payload['owner'] ?? null) ? $payload['owner'] : [];
+        $owner = is_array($record['owner'] ?? null) && (new ReviewReconciler())->hasIdentity($record['owner']) ? $record['owner'] : $runtime_owner;
+        $reconciler = new ReviewReconciler();
+        if (! $reconciler->hasIdentity($owner) || ! $reconciler->isOwner($runtime_owner, $owner)) {
+            return new WP_Error('owner_mismatch', 'The signed-in Pinterest account does not match the captured board owner.', ['status' => 409]);
+        }
+        if (! (new ReviewReconciler())->hasIdentity($record['owner'] ?? [])) {
+            (new PinImportStore())->capture([
+                'pin_id' => $pin_id,
+                'pin_url' => (string) $record['pin_url'],
+                'board_url' => (string) ($record['board_urls'][0] ?? ''),
+            ], $owner);
+        }
+        update_post_meta((int) $record['recipe_id'], RecipeMeta::META_PINTEREST_SYNC_STATUS, 'pending');
+        $results = [];
+        foreach (is_array($payload['comments'] ?? null) ? $payload['comments'] : [] as $comment) {
+            if (is_array($comment) && $reconciler->isOwner($comment['author'] ?? [], $owner)) {
+                $results[] = $reconciler->reconcile((int) $record['recipe_id'], $pin_id, $comment, $owner, (bool) ($payload['comments_complete'] ?? false));
+            }
+        }
+        update_option('mae_storm_last_browser_import_owner', array_intersect_key($owner, array_flip(['id', 'username', 'profile_url'])), false);
+        return new WP_REST_Response(['pin_id' => $pin_id, 'recipe_id' => (int) $record['recipe_id'], 'status' => 'pending', 'reviews' => $results]);
+    }
+
+    public function failure(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $stage = sanitize_key((string) $request->get_param('stage'));
+        if (! in_array($stage, ['recipe', 'reviews'], true)) {
+            return new WP_Error('invalid_stage', 'A supported stage is required.', ['status' => 400]);
+        }
+        (new PinImportStore())->fail((string) $request['pin_id'], $stage, (string) $request->get_param('error'));
+        return new WP_REST_Response(['status' => 'failed']);
+    }
+
+    public function finalize(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $pin_id = (string) $request['pin_id'];
+        $record = (new PinImportStore())->get($pin_id);
+        $recipe_id = (int) ($record['recipe_id'] ?? 0);
+        if (! $recipe_id) {
+            $recipe_id = $this->findRecipeByPin($pin_id);
+        }
+        if (! $recipe_id) {
+            return new WP_Error('pin_not_resolved', 'The pin must be resolved before finalization.', ['status' => 409]);
+        }
+        $payload = $request->get_json_params();
+        if (! is_array($payload) || ($payload['comments_complete'] ?? false) !== true) {
+            return new WP_Error('comments_incomplete', 'Complete comment expansion is required before finalization.', ['status' => 409]);
+        }
+        $reviews = get_posts(['post_type' => ContentTypes::POST_TYPE_REVIEW, 'post_status' => 'any', 'fields' => 'ids', 'posts_per_page' => -1,
+            'meta_key' => ReviewMeta::META_PINTEREST_PIN_ID, 'meta_value' => $pin_id]);
+        foreach ($reviews as $review_id) {
+            if ((string) get_post_meta((int) $review_id, ReviewMeta::META_THREAD_COMPLETE, true) !== '1'
+                || (string) get_post_meta((int) $review_id, ReviewMeta::META_MEDIA_COMPLETE, true) !== '1') {
+                return new WP_Error('pin_incomplete', 'Complete comments and media are required before finalization.', ['status' => 409]);
+            }
+        }
+        $warnings = [];
+        $synced_at = gmdate('c');
+        update_post_meta($recipe_id, RecipeMeta::META_PINTEREST_SYNC_STATUS, 'complete');
+        update_post_meta($recipe_id, RecipeMeta::META_PINTEREST_SYNCED_AT, $synced_at);
+        (new PinImportStore())->completeReviews($pin_id);
+        return new WP_REST_Response(['pin_id' => $pin_id, 'recipe_id' => $recipe_id, 'status' => 'complete', 'synced_at' => $synced_at, 'warnings' => $warnings]);
     }
 
     public function media(WP_REST_Request $request): WP_REST_Response|WP_Error
@@ -154,12 +308,14 @@ final class BrowserImport implements ServiceProviderInterface
             return new WP_Error('invalid_photo_type', 'Only valid JPEG, PNG, WebP, and GIF photos are accepted.', ['status' => 415]);
         }
         $comment_id = sanitize_text_field((string) $request['comment_id']);
+        $photo_id = sanitize_text_field((string) $request->get_param('photo_id'));
         $hash = hash_file('sha256', (string) $file['tmp_name']);
         $existing = get_posts(['post_type' => 'attachment', 'post_status' => 'inherit', 'fields' => 'ids', 'posts_per_page' => 1, 'meta_query' => [
             ['key' => '_mae_storm_pinterest_comment_id', 'value' => $comment_id],
             ['key' => '_mae_storm_pinterest_content_hash', 'value' => $hash],
         ]]);
         if ($existing !== []) {
+            (new ReviewReconciler())->attachMedia((string) $request['pin_id'], $comment_id, (int) $existing[0], $photo_id);
             return new WP_REST_Response(['attachment_id' => (int) $existing[0], 'duplicate' => true]);
         }
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -173,7 +329,8 @@ final class BrowserImport implements ServiceProviderInterface
         }
         update_post_meta($attachment_id, '_mae_storm_pinterest_comment_id', $comment_id);
         update_post_meta($attachment_id, '_mae_storm_pinterest_content_hash', $hash);
-        (new ReviewReconciler())->attachMedia((string) $request['pin_id'], $comment_id, (int) $attachment_id);
+        update_post_meta($attachment_id, '_mae_storm_pinterest_photo_id', $photo_id);
+        (new ReviewReconciler())->attachMedia((string) $request['pin_id'], $comment_id, (int) $attachment_id, $photo_id);
         return new WP_REST_Response(['attachment_id' => (int) $attachment_id, 'duplicate' => false], 201);
     }
 

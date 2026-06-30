@@ -2,23 +2,35 @@
   "manifest_version": 3,
   "name": "Mae Storm Pinterest Recipe Importer",
   "version": "1.0.0",
-  "description": "Imports the signed-in owner's Pinterest board recipes and reviews into recipes.maestorm.com.",
+  "description": "Imports the signed-in owner's Pinterest board recipes and reviews into a configured WordPress site.",
+  "icons": {
+    "32": "icons/mae-storm-eats.svg",
+    "48": "icons/mae-storm-eats.svg",
+    "64": "icons/mae-storm-eats.svg",
+    "96": "icons/mae-storm-eats.svg"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "pinterest-importer@recipes.maestorm.com",
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["activeTab", "storage", "tabs"],
-  "host_permissions": [
-    "https://www.pinterest.com/*",
-    "https://*.pinimg.com/*",
-    "https://recipes.maestorm.com/*"
-  ],
+  "permissions": ["activeTab", "alarms", "storage", "tabs", "tabHide"],
+  "host_permissions": ["https://www.pinterest.com/*", "https://*.pinimg.com/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "scripts": ["background.js"]
   },
+  "options_ui": {
+    "page": "connection.html",
+    "open_in_tab": true
+  },
   "action": {
+    "default_icon": {
+      "16": "icons/mae-storm-eats.svg",
+      "32": "icons/mae-storm-eats.svg",
+      "64": "icons/mae-storm-eats.svg"
+    },
     "default_title": "Import Pinterest board",
     "default_popup": "popup.html"
   },
@@ -26,7 +38,7 @@
     {
       "matches": ["https://www.pinterest.com/*"],
       "js": ["collector.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ]
 }

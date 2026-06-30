@@ -7,6 +7,8 @@ namespace MaeStorm\Recipes;
 final class ContentTypes implements ServiceProviderInterface
 {
     public const POST_TYPE_RECIPE = 'recipe';
+    public const POST_TYPE_REVIEW = 'recipe_review';
+    public const POST_TYPE_PIN_IMPORT = 'pinterest_import';
     public const TAXONOMY_CUISINE = 'recipe_cuisine';
     public const TAXONOMY_COURSE = 'recipe_course';
     public const TAXONOMY_DIET = 'recipe_diet';
@@ -50,11 +52,49 @@ final class ContentTypes implements ServiceProviderInterface
             'capability_type' => 'post',
             'map_meta_cap' => true,
         ]);
+
+        register_post_type(self::POST_TYPE_REVIEW, [
+            'labels' => [
+                'name' => _x('Recipe Reviews', 'post type general name', 'mae-storm-recipes'),
+                'singular_name' => _x('Recipe Review', 'post type singular name', 'mae-storm-recipes'),
+                'add_new_item' => __('Add New Recipe Review', 'mae-storm-recipes'),
+                'edit_item' => __('Edit Recipe Review', 'mae-storm-recipes'),
+                'new_item' => __('New Recipe Review', 'mae-storm-recipes'),
+                'view_item' => __('View Recipe Review', 'mae-storm-recipes'),
+                'search_items' => __('Search Recipe Reviews', 'mae-storm-recipes'),
+                'not_found' => __('No recipe reviews found.', 'mae-storm-recipes'),
+                'not_found_in_trash' => __('No recipe reviews found in Trash.', 'mae-storm-recipes'),
+                'all_items' => __('Recipe Reviews', 'mae-storm-recipes'),
+                'menu_name' => __('Reviews', 'mae-storm-recipes'),
+            ],
+            'description' => __('Imported Pinterest comments and reviews linked to recipes.', 'mae-storm-recipes'),
+            'public' => false,
+            'publicly_queryable' => false,
+            'exclude_from_search' => true,
+            'show_ui' => true,
+            'show_in_menu' => 'edit.php?post_type=' . self::POST_TYPE_RECIPE,
+            'show_in_rest' => true,
+            'rest_base' => 'recipe-reviews',
+            'supports' => ['title', 'editor', 'revisions', 'custom-fields'],
+            'capability_type' => 'post',
+            'map_meta_cap' => true,
+        ]);
+
+        register_post_type(self::POST_TYPE_PIN_IMPORT, [
+            'labels' => ['name' => __('Pinterest Imports', 'mae-storm-recipes')],
+            'description' => __('Private staged Pinterest import inventory.', 'mae-storm-recipes'),
+            'public' => false,
+            'publicly_queryable' => false,
+            'exclude_from_search' => true,
+            'show_ui' => false,
+            'show_in_rest' => false,
+            'supports' => ['title', 'custom-fields'],
+        ]);
     }
 
     public function disableBlockEditor(bool $use_block_editor, string $post_type): bool
     {
-        return $post_type === self::POST_TYPE_RECIPE ? false : $use_block_editor;
+        return in_array($post_type, [self::POST_TYPE_RECIPE, self::POST_TYPE_REVIEW], true) ? false : $use_block_editor;
     }
 
     public function registerTaxonomies(): void

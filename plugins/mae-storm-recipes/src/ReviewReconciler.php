@@ -72,7 +72,7 @@ final class ReviewReconciler
         return ['review_id' => $id, 'comment_id' => $key, 'conflict' => $conflict, 'media_required' => count($photos)];
     }
 
-    public function attachMedia(string $pin_id, string $comment_id, int $attachment_id): void
+    public function attachMedia(string $pin_id, string $comment_id, int $attachment_id, string $photo_id = ''): void
     {
         $ids = get_posts(['post_type' => ContentTypes::POST_TYPE_REVIEW, 'post_status' => 'any', 'fields' => 'ids', 'posts_per_page' => 1,
             'meta_key' => ReviewMeta::META_COMMENT_ID, 'meta_value' => $comment_id]);
@@ -89,6 +89,11 @@ final class ReviewReconciler
         $recipe_id = (int) get_post_meta($id, ReviewMeta::META_RECIPE_ID, true);
         (new RecipeImages())->useReviewPhoto($recipe_id, $attachment_id);
         $manifest = (array) get_post_meta($id, ReviewMeta::META_PHOTO_MANIFEST, true);
-        update_post_meta($id, ReviewMeta::META_MEDIA_COMPLETE, count(array_unique($attachments)) >= count($manifest) ? '1' : '0');
+        if ($photo_id !== '') {
+            update_post_meta($attachment_id, '_mae_storm_pinterest_photo_id', $photo_id);
+        }
+        $required = array_values(array_filter(array_map(static fn (mixed $photo): string => is_array($photo) ? (string) ($photo['id'] ?? '') : '', $manifest)));
+        $uploaded = array_map(static fn (int $attachment): string => (string) get_post_meta($attachment, '_mae_storm_pinterest_photo_id', true), array_unique($attachments));
+        update_post_meta($id, ReviewMeta::META_MEDIA_COMPLETE, array_diff($required, $uploaded) === [] ? '1' : '0');
     }
 }

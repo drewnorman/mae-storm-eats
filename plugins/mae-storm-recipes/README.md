@@ -8,6 +8,7 @@ First-party WordPress plugin for the private recipes.maestorm.com recipe app.
 - Registers recipe taxonomies for cuisine, course, diet, and recipe tags.
 - Registers typed recipe meta placeholders for:
   - source URLs and Pinterest URLs
+  - canonical Pinterest pin IDs
   - image references
   - servings
   - prep, cook, and total time in minutes
@@ -15,10 +16,12 @@ First-party WordPress plugin for the private recipes.maestorm.com recipe app.
   - import status and import errors
   - structured recipe data for future ingredients, steps, notes, nutrition, and raw extracted artifacts
 - Adds a REST authentication filter stub for recipe routes.
-- Adds WP-CLI command stubs under `wp mae-storm recipes`.
+- Adds WP-CLI commands under `wp mae-storm recipes`.
 - Performs activation checks for PHP 8.3+ and WordPress 6.5+.
 - Provides recipe view helpers consumed by the first-party Timber theme.
 - Protects frontend access through a shared-password gate.
+- Imports Pinterest boards, owner reviews, replies, and photos through a
+  restricted Firefox WebExtension and capability-protected REST routes.
 
 The plugin loads through the repository Composer PSR-4 mapping:
 
@@ -36,15 +39,9 @@ login screen with the `mae_storm_recipes_private_login_template` filter,
 defaulting to `private-login.twig`. The active Mae Storm Recipes theme provides
 that template through its registered Timber locations.
 
-## Not Implemented Yet
+## Browser Import
 
-- Import candidate storage, extraction adapters, duplicate review, or publish pipeline.
-- Gutenberg sidebar controls for structured recipe editing.
-- Real WP-CLI import, retry, reparse, validate, or duplicate-scan commands.
-
-## Future Phases
-
-- Phase 5: add focused admin editing UI around the structured recipe meta.
-- Phase 6: add import candidates, Pinterest/archive/DOCX/image adapters,
-  duplicate detection, and real WP-CLI commands.
-- Phase 7: connect the private Timber browsing experience to the recipe model.
+The plugin creates the restricted `recipe_importer` role and non-interactive
+`pinterest-importer` user during its versioned upgrade. An administrator creates
+a revocable Application Password for that user and supplies it to the Firefox
+extension. See `docs/browser-import.md`.
