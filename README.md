@@ -15,18 +15,19 @@ Shared host, DNS, GCP, backup, and production orchestration concerns belong in t
 
 ## Development
 
-Enter the Nix dev shell, then install project tools when network access is available:
+Enter the Nix dev shell and bootstrap the locked project dependencies and
+compiled theme assets:
 
 ```sh
 nix develop
-corepack enable
-yarn install
-composer install
+just bootstrap
+just dev-up
 ```
 
 Common commands:
 
 ```sh
+just bootstrap
 just check
 just fmt
 just install-hooks
@@ -35,7 +36,11 @@ just dev-logs
 just dev-down
 ```
 
-Commit messages must follow Conventional Commits. `yarn install` and
+`just bootstrap` runs immutable Yarn and Composer installs, builds the theme
+assets, creates the local uploads directory, and configures the repository Git
+hooks. Run it after dependency-lock changes or when preparing a clean checkout.
+
+Commit messages must follow Conventional Commits. `just bootstrap` and
 `just install-hooks` configure the local `commit-msg` hook, and CI validates
 commit messages on pull requests and pushes to `master`.
 
@@ -43,15 +48,30 @@ The local WordPress environment is defined in `compose.yaml`. Plugin and theme
 code is mounted from `plugins/mae-storm-recipes` and
 `themes/mae-storm-recipes`.
 
-`just dev-up` verifies the plugin mount, activates the Mae Storm Recipes plugin
-when necessary, and then runs the containers in the foreground with live logs.
-The app is available at <http://wordpress.recipes.localhost>. Press Ctrl-C to
-stop the containers.
+`just dev-up` verifies its bootstrap outputs and Podman prerequisites, installs
+WordPress when the database is new, and activates the Mae Storm Recipes plugin
+and theme. It then runs the containers in the foreground with live logs. The app
+is available at <http://wordpress.recipes.localhost>. Press Ctrl-C to stop the
+containers.
 
 The Compose stack expects the external `local-proxy` Podman network and its
-shared Traefik proxy to already be running. Theme assets are committed for the
-initial boot; run `corepack yarn dev` separately when working on theme CSS or
-JavaScript.
+shared Traefik proxy to already be running. This integration is an intentional
+part of the local environment.
+
+A new local database uses WordPress administrator `admin` with password
+`password`. The private frontend uses `password` as well. These development-only
+defaults and the local site metadata can be overridden in an ignored `.env`;
+copy `.env.example` as a starting point. Overrides only affect a new WordPress
+installation and do not replace credentials in an existing database.
+
+Compiled theme assets are generated and ignored. Run `corepack yarn dev`
+separately when working on theme CSS or JavaScript. `just dev-reset` deletes the
+local database and WordPress volumes; the next `just dev-up` recreates them with
+the configured development defaults.
+
+WordPress and MariaDB images use explicit patch tags and multi-architecture
+digests. When updating an image, resolve the new tag's manifest-list digest,
+change the tag and digest together in `compose.yaml`, then run `just check`.
 
 Pinterest imports are performed from Firefox inside the owner's existing
 Pinterest session. See [docs/browser-import.md](docs/browser-import.md).
@@ -75,6 +95,11 @@ Build the app artifact consumed by the shared infra repo:
 ```sh
 just build-artifact
 ```
+
+The build stages the committed source, compiles theme assets, installs
+production Composer dependencies, and produces a normalized archive. Use
+`just test-artifact` to build it twice and verify its contents and byte-for-byte
+reproducibility.
 
 The service boundary, runtime secrets, persistent data, and backup expectations are documented in `docs/service-contract.md`.
 

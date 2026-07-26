@@ -20,29 +20,27 @@
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          opentofuPackage =
-            if pkgs ? opentofu then
-              [ pkgs.opentofu ]
-            else
-              [ ];
         in
         {
           default = pkgs.mkShell {
             packages = [
               pkgs.nodejs_24
               pkgs.corepack
-              pkgs.php
-              pkgs.phpPackages.composer
+              pkgs.php83
+              pkgs.php83Packages.composer
               pkgs.wp-cli
               pkgs.podman
               pkgs.podman-compose
               pkgs.just
               pkgs.git
-            ] ++ opentofuPackage;
+              pkgs.opentofu
+              pkgs.gnutar
+              pkgs.gzip
+            ];
 
             shellHook = ''
               export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-              echo "recipes dev shell: run 'corepack enable', then 'yarn install' and 'composer install' when dependencies are needed."
+              echo "recipes dev shell: run 'just bootstrap', then 'just dev-up'."
             '';
           };
         });

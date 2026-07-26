@@ -16,28 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install JS dependencies
-        run: yarn install
-
-      - name: Check editor formatting basics
-        run: scripts/dev/check-editorconfig.sh
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          tools: composer:v2
-
-      - name: Validate Composer config
-        run: composer validate --strict --no-check-lock
+      - name: Bootstrap
+        run: nix develop --command just bootstrap
 
       - name: Run checks
-        run: yarn fmt:check
+        run: nix develop --command just check
+
+      - name: Boot development stack
+        run: nix develop --command just test-dev-boot
+
+      - name: Test release artifact
+        run: nix develop --command just test-artifact "${GITHUB_SHA}"

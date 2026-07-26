@@ -7,8 +7,10 @@ if ! command -v corepack >/dev/null 2>&1; then
 fi
 
 if [ ! -d node_modules ]; then
-  echo "node_modules is missing. Run 'corepack yarn install' before committing." >&2
+  echo "node_modules is missing. Run 'just bootstrap' before committing." >&2
   exit 1
 fi
 
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/corepack-cache}" corepack yarn commitlint --edit "$1"
+XDG_CACHE_HOME="${RECIPES_CACHE_HOME:-/tmp/recipes-cache}" \
+  COREPACK_HOME="${RECIPES_COREPACK_HOME:-/tmp/recipes-corepack}" \
+  corepack yarn commitlint --edit "$1"

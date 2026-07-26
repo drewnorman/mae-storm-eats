@@ -20,21 +20,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Bootstrap
+        run: nix develop --command just bootstrap
 
       - name: Lint PR commits
         if: github.event_name == 'pull_request'
-        run: yarn commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+        run: nix develop --command just commitlint "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
       - name: Lint latest master commit
         if: github.event_name == 'push'
-        run: yarn commitlint --last
+        run: nix develop --command just commitlint

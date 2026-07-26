@@ -1,19 +1,35 @@
 set dotenv-load := true
+set shell := ["bash", "-euo", "pipefail", "-c"]
 
-export XDG_CACHE_HOME := env_var_or_default("XDG_CACHE_HOME", "/tmp/corepack-cache")
+export XDG_CACHE_HOME := env_var_or_default("RECIPES_CACHE_HOME", "/tmp/recipes-cache")
+export COREPACK_HOME := env_var_or_default("RECIPES_COREPACK_HOME", "/tmp/recipes-corepack")
 
 default:
   just --list
 
+bootstrap:
+  @scripts/dev/bootstrap.sh
+
 fmt:
-  @if command -v corepack >/dev/null 2>&1 && [ -d node_modules ]; then XDG_CACHE_HOME=/tmp/corepack-cache corepack yarn fmt; else echo "Skipping JS format: run 'corepack yarn install' first."; fi
-  @if command -v composer >/dev/null 2>&1; then composer run-script fmt; else echo "Skipping PHP format: composer is not installed."; fi
+  @just check-dependencies
+  @corepack yarn fmt
+  @composer run-script fmt
 
 check:
+  @just check-dependencies
   just check-editorconfig
   @scripts/test/browser-import.sh
-  @if command -v corepack >/dev/null 2>&1 && [ -d node_modules ]; then XDG_CACHE_HOME=/tmp/corepack-cache corepack yarn fmt:check; else echo "Skipping JS checks: run 'corepack yarn install' first."; fi
-  @if command -v composer >/dev/null 2>&1; then composer validate --strict --no-check-lock; else echo "Skipping Composer checks: composer is not installed."; fi
+  @scripts/test/php-syntax.sh
+  @scripts/test/timber-boundary.sh
+  @scripts/test/image-pins.sh
+  @corepack yarn fmt:check
+  @corepack yarn typecheck
+  @corepack yarn build
+  @composer validate --strict --no-check-lock
+
+check-dependencies:
+  @test -d node_modules || { echo "node_modules is missing; run 'just bootstrap'." >&2; exit 1; }
+  @test -f vendor/autoload.php || { echo "vendor/autoload.php is missing; run 'just bootstrap'." >&2; exit 1; }
 
 check-editorconfig:
   @scripts/dev/check-editorconfig.sh
@@ -22,11 +38,15 @@ install-hooks:
   @git config core.hooksPath .githooks
   @echo "Installed git hooks from .githooks"
 
-commitlint range="HEAD~1..HEAD":
-  @if command -v corepack >/dev/null 2>&1 && [ -d node_modules ]; then XDG_CACHE_HOME=/tmp/corepack-cache corepack yarn commitlint --from {{range}}; else echo "Skipping commitlint: run 'corepack yarn install' first."; fi
+commitlint from="HEAD~1" to="HEAD":
+  @just check-dependencies
+  @corepack yarn commitlint --from "{{from}}" --to "{{to}}"
 
 build-artifact version=`git rev-parse --short HEAD`:
   @scripts/release/build-artifact.sh {{version}}
+
+test-artifact version=`git rev-parse --short HEAD`:
+  @scripts/test/release-artifact.sh {{version}}
 
 dev-up:
   @scripts/dev/up.sh
@@ -39,3 +59,6 @@ dev-logs:
 
 dev-reset:
   @podman-compose -f compose.yaml down -v
+
+test-dev-boot:
+  @scripts/test/podman-boot-smoke.sh

@@ -1,6 +1,6 @@
 services:
   db:
-    image: docker.io/library/mariadb:11.4
+    image: docker.io/library/mariadb:11.4.8@sha256:bc474f00629f0123c10f9e1bca193a45d18af15a274cf0656acda64f1086c3b6
     environment:
       MARIADB_DATABASE: wordpress
       MARIADB_USER: wordpress
@@ -15,7 +15,7 @@ services:
       retries: 10
 
   wordpress:
-    image: docker.io/library/wordpress:7-php8.3-apache
+    image: docker.io/library/wordpress:7.0.2-php8.3-apache@sha256:9fac4d47b61186131ffefb5d966f0045d0eea94bfd7bd40cafae29b78a709d1b
     depends_on:
       db:
         condition: service_healthy
@@ -25,11 +25,17 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DEBUG: "1"
+      RECIPES_DEV_SITE_TITLE: "${RECIPES_DEV_SITE_TITLE:-Mae Storm Recipes (Local)}"
+      RECIPES_DEV_ADMIN_USER: "${RECIPES_DEV_ADMIN_USER:-admin}"
+      RECIPES_DEV_ADMIN_PASSWORD: "${RECIPES_DEV_ADMIN_PASSWORD:-password}"
+      RECIPES_DEV_ADMIN_EMAIL: "${RECIPES_DEV_ADMIN_EMAIL:-admin@recipes.localhost}"
+      MAE_STORM_RECIPES_SHARED_PASSWORD: "${MAE_STORM_RECIPES_SHARED_PASSWORD:-password}"
       WORDPRESS_CONFIG_EXTRA: |
+        define('WP_ENVIRONMENT_TYPE', 'local');
         define('WP_HOME', 'http://wordpress.recipes.localhost');
         define('WP_SITEURL', 'http://wordpress.recipes.localhost');
     labels:
-      traefik.enable: "true"
+      traefik.enable: "${RECIPES_TRAEFIK_ENABLE:-true}"
       traefik.docker.network: local-proxy
       traefik.http.routers.recipes-wordpress.entrypoints: web
       traefik.http.routers.recipes-wordpress.rule: Host(`wordpress.recipes.localhost`)
@@ -40,7 +46,7 @@ services:
     volumes:
       - wordpress-data:/var/www/html
       - ./vendor:/var/www/html/wp-content/vendor:Z
-      - ./plugins:/var/www/html/wp-content/plugins:Z
+      - ./plugins/mae-storm-recipes:/var/www/html/wp-content/plugins/mae-storm-recipes:Z
       - ./themes/mae-storm-recipes:/var/www/html/wp-content/themes/mae-storm-recipes:Z
       - ./config/dev/uploads:/var/www/html/wp-content/uploads:Z
 

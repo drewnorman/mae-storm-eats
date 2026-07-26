@@ -1,6 +1,9 @@
 # Tests
 
-This directory is reserved for phase-specific automated tests as the WordPress
-plugin, theme, importer, and local container stack are implemented.
+This directory contains direct PHP and JavaScript tests. Executable integration
+and smoke-test entrypoints live in `scripts/test`.
 
-Current executable smoke-test scaffolds live in `scripts/test`.
+`just check` runs strict static and application checks. `just test-dev-boot`
+bootstraps a clean Podman stack twice and verifies WordPress, the local
+administrator, the plugin, the theme, Timber, assets, and HTTP rendering.
+`just test-artifact` verifies complete, byte-reproducible release archives.

@@ -13,6 +13,21 @@ if ! command -v podman >/dev/null 2>&1 || ! command -v podman-compose >/dev/null
     exit 1
 fi
 
+if ! podman info >/dev/null 2>&1; then
+    echo "Podman is installed but not usable. Start the Podman machine or user service first." >&2
+    exit 1
+fi
+
+for required_file in \
+    vendor/autoload.php \
+    themes/mae-storm-recipes/assets/dist/app.css \
+    themes/mae-storm-recipes/assets/dist/app.js; do
+    if [ ! -s "${required_file}" ]; then
+        echo "${required_file} is missing; run 'just bootstrap' first." >&2
+        exit 1
+    fi
+done
+
 if ! podman network exists local-proxy; then
     echo "The external Podman network 'local-proxy' is missing. Start the shared local Traefik proxy first." >&2
     exit 1
@@ -32,19 +47,24 @@ if ! "${compose[@]}" exec -T wordpress test -f "${plugin_file}"; then
 fi
 
 attempt=1
-while [ "${attempt}" -le 15 ]; do
+while [ "${attempt}" -le 30 ]; do
     if "${compose[@]}" exec -T wordpress php /dev/stdin < "${script_dir}/bootstrap-wordpress.php"; then
+        if [ "${RECIPES_DEV_DETACH:-0}" = "1" ]; then
+            echo "WordPress is running at http://wordpress.recipes.localhost"
+            exit 0
+        fi
+
         "${compose[@]}" stop
         echo "Starting WordPress at http://wordpress.recipes.localhost"
         echo "Press Ctrl-C to stop the containers."
         exec "${compose[@]}" up
     fi
 
-    if [ "${attempt}" -eq 15 ]; then
+    if [ "${attempt}" -eq 30 ]; then
         break
     fi
 
-    echo "WordPress is not ready yet; retrying (${attempt}/15)."
+    echo "WordPress is not ready yet; retrying (${attempt}/30)."
     sleep 2
     attempt=$((attempt + 1))
 done

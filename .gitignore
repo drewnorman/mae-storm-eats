@@ -23,6 +23,7 @@ notes/
 wp-content/uploads/
 config/dev/db/
 config/dev/wordpress/
+config/dev/uploads/
 
 # Build and cache output
 dist/

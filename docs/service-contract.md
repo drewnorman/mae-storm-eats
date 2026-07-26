@@ -6,12 +6,15 @@ deployment orchestration.
 
 ## Artifact
 
-- Build command: `just build-artifact version=<git-sha-or-release>`
+- Build command: `just build-artifact <git-sha-or-release>`
 - Output: `dist/recipes-<version>.tar.gz`
-- Contents: tracked application source, plugin/theme assets, Composer/Yarn
-  manifests, local smoke scripts, and service contract docs.
-- Exclusions: local WordPress state, uploads, database files, dependency caches,
-  OpenTofu state, and secrets.
+- Contents: tracked application source, compiled plugin/theme assets,
+  production Composer dependencies including Timber, Composer/Yarn manifests,
+  local smoke scripts, and service contract docs.
+- Exclusions: `node_modules`, package caches, local WordPress state, uploads,
+  database files, OpenTofu state, and secrets.
+- Reproducibility: files are ordered and timestamped from the source commit, and
+  archive ownership and gzip metadata are normalized.
 
 ## Runtime
 
