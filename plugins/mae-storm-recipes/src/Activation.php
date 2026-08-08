@@ -6,7 +6,7 @@ namespace MaeStorm\Recipes;
 
 final class Activation
 {
-    private const SCHEMA_VERSION = 3;
+    private const SCHEMA_VERSION = 4;
     private const MINIMUM_PHP_VERSION = '8.3.0';
     private const MINIMUM_WORDPRESS_VERSION = '6.5';
 
@@ -76,6 +76,7 @@ final class Activation
                 update_post_meta((int) $review_id, ReviewMeta::META_VERIFICATION, 'unverified');
             }
         }
+        (new RecipeBackfill())->migrate();
         self::backfillPinImports();
         update_option('mae_storm_recipes_schema_version', self::SCHEMA_VERSION, false);
     }

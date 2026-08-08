@@ -22,6 +22,7 @@ final class Plugin
             new ContentTypes(),
             new RecipeMeta(),
             new ReviewMeta(),
+            new RecipeBackfill(),
             new AdminReview(),
             new AdminBrowserImport(),
             new BrowserImport(),
