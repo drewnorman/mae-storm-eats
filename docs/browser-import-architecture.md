@@ -13,8 +13,10 @@ schedules Pinterest work, or receives Pinterest session material.
 
 Board capture never opens individual pins. Destination and review stages obtain
 server-backed batches of at most ten saved pin URLs and space direct pin visits
-by 30 seconds. Once a destination is captured, recipe extraction bypasses
-Pinterest entirely. Review collection is deferred to its own explicit stage.
+with a randomized, non-fixed delay (with an escalating cooldown and a daily
+cap if Pinterest pushes back — see `docs/browser-import.md`). Once a
+destination is captured, recipe extraction bypasses Pinterest entirely. Review
+collection is deferred to its own explicit stage.
 
 The extension authenticates to WordPress as a non-interactive service identity
 with only `read` and `mae_storm_import_recipes`. The owner's normal editorial

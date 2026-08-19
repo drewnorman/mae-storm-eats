@@ -19,6 +19,40 @@ const reviewCount = document.querySelector("#review-count");
 const captureCount = document.querySelector("#capture-count");
 const pause = document.querySelector("#pause");
 const resume = document.querySelector("#resume");
+const manualReviewNote = document.querySelector("#manual-review-note");
+const resumeCountdown = document.querySelector("#resume-countdown");
+const pauseHistorySection = document.querySelector("#pause-history");
+const pauseHistoryList = document.querySelector("#pause-history-list");
+const failureLogSection = document.querySelector("#failure-log");
+const failureLogList = document.querySelector("#failure-log-list");
+
+const BLOCK_KIND_LABELS = {
+  captcha: "CAPTCHA",
+  login: "login wall",
+  rate_limited: "rate limited",
+  service: "connection issue",
+  unknown: "blocked",
+};
+
+function blockKindLabel(kind) {
+  return BLOCK_KIND_LABELS[kind] || kind;
+}
+
+let countdownTimer = null;
+
+function clearCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+}
+
+function formatCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 function showActions(run) {
   const busy = ["capturing", "running", "waiting", "pause_requested"].includes(
@@ -38,6 +72,67 @@ function showActions(run) {
   });
   pause.hidden = !busy;
   resume.hidden = !paused;
+}
+
+function renderResumeState(run) {
+  clearCountdown();
+  const paused = run.status === "paused";
+  const resumeNotBefore = run.resumeNotBefore
+    ? new Date(run.resumeNotBefore).getTime()
+    : null;
+  const eligible = !resumeNotBefore || Date.now() >= resumeNotBefore;
+  if (paused) resume.disabled = !eligible;
+  resumeCountdown.hidden = !(paused && resumeNotBefore && !eligible);
+  if (!(paused && resumeNotBefore && !eligible)) return;
+  const label = run.blockKind ? ` (${blockKindLabel(run.blockKind)})` : "";
+  const update = () => {
+    const remaining = resumeNotBefore - Date.now();
+    if (remaining <= 0) {
+      resume.disabled = false;
+      resumeCountdown.hidden = true;
+      clearCountdown();
+      return;
+    }
+    resumeCountdown.textContent = `Auto-resumes in ${formatCountdown(remaining)}${label}`;
+  };
+  update();
+  countdownTimer = setInterval(update, 1000);
+}
+
+function renderManualReview(run) {
+  const count = run.manualReviewExcluded || 0;
+  manualReviewNote.hidden = !count;
+  if (count)
+    manualReviewNote.textContent = `${count} pin${count === 1 ? "" : "s"} failed repeatedly and need manual review in WordPress — excluded from auto-retry.`;
+}
+
+function renderPauseHistory(history = []) {
+  pauseHistorySection.hidden = history.length === 0;
+  pauseHistoryList.innerHTML = "";
+  history.forEach((entry) => {
+    const li = document.createElement("li");
+    const at = new Date(entry.at).toLocaleString([], {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    const kind = entry.blockKind ? `${blockKindLabel(entry.blockKind)}: ` : "";
+    li.textContent = `${at} — ${kind}${entry.reason || "Paused"}`;
+    pauseHistoryList.appendChild(li);
+  });
+}
+
+function renderFailureLog(log = []) {
+  failureLogSection.hidden = log.length === 0;
+  failureLogList.innerHTML = "";
+  log.forEach((entry) => {
+    const li = document.createElement("li");
+    const at = new Date(entry.at).toLocaleString([], {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    li.textContent = `${at} — pin ${entry.pinId} (${entry.stage}): ${entry.reason || "Failed"}`;
+    failureLogList.appendChild(li);
+  });
 }
 
 function stageText(counts = {}) {
@@ -65,6 +160,8 @@ function renderInventory(inventory = {}) {
 function renderRun(run) {
   renderInventory(run.inventory);
   showActions(run);
+  renderResumeState(run);
+  renderManualReview(run);
   const discovered = run.discovered || run.pins?.length || 0;
   const queued = run.queue?.length || (run.kind === "capture" ? discovered : 0);
   const completed = run.completed || 0;
@@ -130,10 +227,12 @@ function renderConnection(connection = {}) {
 }
 
 browser.storage.local
-  .get(["connection", "run"])
-  .then(({ connection = {}, run = {} }) => {
+  .get(["connection", "run", "pauseHistory", "failureLog"])
+  .then(({ connection = {}, run = {}, pauseHistory = [], failureLog = [] }) => {
     renderRun(run);
     renderConnection(connection);
+    renderPauseHistory(pauseHistory);
+    renderFailureLog(failureLog);
     if (connection.state === "verified")
       browser.runtime.sendMessage({ type: "status" }).catch(() => {});
   })
@@ -210,10 +309,11 @@ browser.runtime.onMessage.addListener((event) => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.run?.newValue) {
-    renderRun(changes.run.newValue);
-  }
-  if (area === "local" && changes.connection?.newValue) {
+  if (area !== "local") return;
+  if (changes.run?.newValue) renderRun(changes.run.newValue);
+  if (changes.connection?.newValue)
     renderConnection(changes.connection.newValue);
-  }
+  if (changes.pauseHistory)
+    renderPauseHistory(changes.pauseHistory.newValue || []);
+  if (changes.failureLog) renderFailureLog(changes.failureLog.newValue || []);
 });

@@ -5,15 +5,148 @@ let activeController = null;
 let activePinTabId = null;
 
 const IMPORT_ALARM = "mae-storm-import-pump";
-const CHECKPOINT_VERSION = 4;
+const RESUME_ALARM = "mae-storm-import-resume";
+const CHECKPOINT_VERSION = 5;
 const BATCH_SIZE = 10;
-const PIN_DELAY_MS = 30000;
+const PIN_DELAY_MIN_MS = 25000;
+const PIN_DELAY_MAX_MS = 55000;
+const LONG_PAUSE_EVERY_MIN = 4;
+const LONG_PAUSE_EVERY_MAX = 6;
+const LONG_PAUSE_MIN_MS = 120000;
+const LONG_PAUSE_MAX_MS = 240000;
 const JSON_TIMEOUT_MS = 20000;
 const PHOTO_TIMEOUT_MS = 30000;
 const MEDIA_TIMEOUT_MS = 60000;
+const DAILY_PIN_CAP = 50;
+const BACKOFF_TIERS_MS = [10 * 60 * 1000, 30 * 60 * 1000, 2 * 60 * 60 * 1000];
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_PIN_RETRIES = 3;
+const PAUSE_HISTORY_LIMIT = 10;
+const FAILURE_LOG_LIMIT = 25;
 
 const permissionMessage =
   "Firefox permission is required to connect to this WordPress site. Choose Connect to try again.";
+
+function randomBetween(min, max) {
+  return Math.round(min + Math.random() * (max - min));
+}
+
+function nextPinDelay(run) {
+  const sincePause = (run.pinsSinceLongPause || 0) + 1;
+  const threshold = randomBetween(LONG_PAUSE_EVERY_MIN, LONG_PAUSE_EVERY_MAX);
+  if (sincePause >= threshold)
+    return {
+      delayMs: randomBetween(LONG_PAUSE_MIN_MS, LONG_PAUSE_MAX_MS),
+      pinsSinceLongPause: 0,
+    };
+  return {
+    delayMs: randomBetween(PIN_DELAY_MIN_MS, PIN_DELAY_MAX_MS),
+    pinsSinceLongPause: sincePause,
+  };
+}
+
+function startOfNextDay() {
+  const next = new Date();
+  next.setHours(24, 0, 0, 0);
+  return next;
+}
+
+function isSameDay(a, b) {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+async function recordPinProcessed() {
+  const { dailyUsage = {} } = await browser.storage.local.get("dailyUsage");
+  const now = new Date().toISOString();
+  const next =
+    dailyUsage.windowStart && isSameDay(dailyUsage.windowStart, now)
+      ? {
+          windowStart: dailyUsage.windowStart,
+          count: (dailyUsage.count || 0) + 1,
+        }
+      : { windowStart: now, count: 1 };
+  await browser.storage.local.set({ dailyUsage: next });
+  return next;
+}
+
+async function dailyCapReached() {
+  const { dailyUsage = {} } = await browser.storage.local.get("dailyUsage");
+  if (
+    !dailyUsage.windowStart ||
+    !isSameDay(dailyUsage.windowStart, new Date().toISOString())
+  )
+    return false;
+  return (dailyUsage.count || 0) >= DAILY_PIN_CAP;
+}
+
+async function recordPause(reason, blockKind) {
+  const { pauseHistory = [] } = await browser.storage.local.get("pauseHistory");
+  const entry = {
+    at: new Date().toISOString(),
+    reason,
+    blockKind: blockKind || "",
+  };
+  const next = [entry, ...pauseHistory].slice(0, PAUSE_HISTORY_LIMIT);
+  await browser.storage.local.set({ pauseHistory: next });
+  return next;
+}
+
+async function recordFailure(pinId, stage, reason) {
+  const { failureLog = [] } = await browser.storage.local.get("failureLog");
+  const entry = { pinId, stage, reason, at: new Date().toISOString() };
+  const next = [
+    entry,
+    ...failureLog.filter(
+      (item) => !(item.pinId === pinId && item.stage === stage),
+    ),
+  ].slice(0, FAILURE_LOG_LIMIT);
+  await browser.storage.local.set({ failureLog: next });
+  return next;
+}
+
+async function clearFailure(pinId, stage) {
+  const { failureLog = [] } = await browser.storage.local.get("failureLog");
+  const next = failureLog.filter(
+    (item) => !(item.pinId === pinId && item.stage === stage),
+  );
+  if (next.length !== failureLog.length)
+    await browser.storage.local.set({ failureLog: next });
+}
+
+async function incrementRetryCount(pinId) {
+  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  const next = { ...retryCounts, [pinId]: (retryCounts[pinId] || 0) + 1 };
+  await browser.storage.local.set({ retryCounts: next });
+  return next;
+}
+
+async function clearRetryCount(pinId) {
+  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  if (!(pinId in retryCounts)) return;
+  const next = { ...retryCounts };
+  delete next[pinId];
+  await browser.storage.local.set({ retryCounts: next });
+}
+
+async function exhaustedPinIds() {
+  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  return new Set(
+    Object.entries(retryCounts)
+      .filter(([, count]) => count >= MAX_PIN_RETRIES)
+      .map(([pinId]) => pinId),
+  );
+}
+
+function notify(title, message) {
+  browser.notifications
+    .create({
+      type: "basic",
+      iconUrl: browser.runtime.getURL("icons/mae-storm-eats.svg"),
+      title,
+      message,
+    })
+    .catch(() => {});
+}
 
 function permissionOrigin(origin) {
   return `${origin}/*`;
@@ -362,7 +495,14 @@ async function captureBoard(tabId) {
     const discovery = await browser.tabs.sendMessage(tabId, {
       type: "discover",
     });
-    if (discovery.paused) return pauseRun();
+    if (discovery.paused) return pauseRun("", { resetConsecutive: true });
+    if (discovery.blocked) {
+      const error = new Error(
+        discovery.reason || "Pinterest login or checkpoint detected.",
+      );
+      error.blockKind = discovery.blockKind || "unknown";
+      throw error;
+    }
     if (!Array.isArray(discovery.pins) || discovery.pins.length === 0)
       throw new Error(
         "No Pinterest pins were discovered. Confirm this is a board page and its pins are visible.",
@@ -381,9 +521,19 @@ async function captureBoard(tabId) {
       discovered: discovery.pins.length,
       message: `${discovery.pins.length} pins captured.`,
     });
+    notify(
+      "Pinterest board captured",
+      `${discovery.pins.length} pin${discovery.pins.length === 1 ? "" : "s"} captured.`,
+    );
     await refreshInventory();
   } catch (error) {
-    await pauseRun(error.message || "Pin capture paused unexpectedly.");
+    const blockKind = error.blockKind || null;
+    await pauseRun(
+      blockKind
+        ? pauseMessageFor(error, blockKind)
+        : error.message || "Pin capture paused unexpectedly.",
+      blockKind ? { blockKind } : {},
+    );
   } finally {
     activeRun = false;
   }
@@ -425,6 +575,7 @@ async function resolveStagePin(pin, run) {
         result.reason || "Pinterest login or checkpoint detected.",
       );
       error.failureKind = "pinterest_blocked";
+      error.blockKind = result.blockKind || "unknown";
       throw error;
     }
     if (run.stage === "recipe") {
@@ -480,9 +631,35 @@ async function schedulePump(delayMs = 0) {
   });
 }
 
-async function pauseRun(error = "") {
+function pauseMessageFor(error, blockKind) {
+  if (blockKind === "captcha")
+    return "Pinterest showed a CAPTCHA. Solve it manually in a normal Pinterest tab, then choose Resume.";
+  if (blockKind === "rate_limited")
+    return "Pinterest or WordPress throttled the import. The batch will resume automatically after a cooldown.";
+  if (blockKind === "login")
+    return error.message || "Pinterest showed a login or checkpoint page.";
+  return error.message || "The stage paused unexpectedly.";
+}
+
+async function pauseRun(error = "", options = {}) {
   await browser.alarms.clear(IMPORT_ALARM);
-  return setRun({
+  await browser.alarms.clear(RESUME_ALARM);
+  const { run: currentRun = {} } = await browser.storage.local.get("run");
+  const blockKind = options.blockKind || null;
+  let consecutiveBlocks = currentRun.consecutiveBlocks || 0;
+  let resumeNotBefore = options.resumeAt || null;
+  if (options.resetConsecutive) {
+    consecutiveBlocks = 0;
+  } else if (blockKind) {
+    consecutiveBlocks += 1;
+    if (!resumeNotBefore && blockKind !== "captcha") {
+      const tierMs = BACKOFF_TIERS_MS[consecutiveBlocks - 1] ?? DAY_MS;
+      resumeNotBefore = new Date(Date.now() + tierMs).toISOString();
+    }
+  }
+  const notable = Boolean(blockKind || options.resumeAt);
+  if (notable) await recordPause(error, blockKind);
+  await setRun({
     status: "paused",
     phase: "paused",
     pauseRequested: false,
@@ -490,12 +667,20 @@ async function pauseRun(error = "") {
     tempTabId: null,
     nextPinAt: null,
     error,
+    blockKind,
+    consecutiveBlocks,
+    resumeNotBefore,
   });
+  if (resumeNotBefore)
+    await browser.alarms.create(RESUME_ALARM, {
+      when: new Date(resumeNotBefore).getTime(),
+    });
+  if (notable) notify("Pinterest import paused", error || "The batch paused.");
 }
 
 async function processQueue() {
   const { run = {} } = await browser.storage.local.get("run");
-  if (run.pauseRequested) return pauseRun();
+  if (run.pauseRequested) return pauseRun("", { resetConsecutive: true });
   if (!Array.isArray(run.queue) || run.cursor >= run.queue.length) {
     await browser.alarms.clear(IMPORT_ALARM);
     await setRun({
@@ -504,7 +689,14 @@ async function processQueue() {
       currentPin: null,
       nextPinAt: null,
       error: "",
+      consecutiveBlocks: 0,
+      resumeNotBefore: null,
+      blockKind: null,
     });
+    notify(
+      "Pinterest import complete",
+      `${run.completed || 0} completed${run.failed ? `, ${run.failed} failed` : ""}.`,
+    );
     return refreshInventory();
   }
   const pin = run.queue[run.cursor];
@@ -516,15 +708,38 @@ async function processQueue() {
       error: "",
     });
     const outcome = await resolveStagePin(pin, run);
+    if (outcome.status === "complete") {
+      await clearRetryCount(pin.pin_id);
+      await clearFailure(pin.pin_id, run.stage);
+    } else if (outcome.status === "failed") {
+      await incrementRetryCount(pin.pin_id);
+      await recordFailure(pin.pin_id, run.stage, outcome.error);
+    }
     const completed =
       (run.completed || 0) + (outcome.status === "complete" ? 1 : 0);
     const failed = (run.failed || 0) + (outcome.status === "failed" ? 1 : 0);
     const cursor = run.cursor + 1;
+    await recordPinProcessed();
     if (cursor >= run.queue.length) {
-      await setRun({ cursor, completed, failed });
+      await setRun({
+        cursor,
+        completed,
+        failed,
+        consecutiveBlocks: 0,
+        resumeNotBefore: null,
+        blockKind: null,
+      });
       return schedulePump(100);
     }
-    const nextPinAt = new Date(Date.now() + PIN_DELAY_MS).toISOString();
+    if (await dailyCapReached()) {
+      await setRun({ cursor, completed, failed, currentPin: null });
+      return pauseRun(
+        `Daily import cap of ${DAILY_PIN_CAP} pins reached today. The batch will resume tomorrow.`,
+        { resumeAt: startOfNextDay().toISOString() },
+      );
+    }
+    const { delayMs, pinsSinceLongPause } = nextPinDelay(run);
+    const nextPinAt = new Date(Date.now() + delayMs).toISOString();
     await setRun({
       status: "waiting",
       phase: "waiting",
@@ -533,14 +748,15 @@ async function processQueue() {
       failed,
       currentPin: null,
       nextPinAt,
+      pinsSinceLongPause,
     });
-    return schedulePump(PIN_DELAY_MS);
+    return schedulePump(delayMs);
   } catch (error) {
-    return pauseRun(
-      error.status === 429
-        ? "Pinterest or WordPress throttled the import. Wait before resuming."
-        : error.message || "The stage paused unexpectedly.",
-    );
+    if (error.failureKind === "paused")
+      return pauseRun("", { resetConsecutive: true });
+    const blockKind =
+      error.blockKind || (error.status === 429 ? "rate_limited" : "service");
+    return pauseRun(pauseMessageFor(error, blockKind), { blockKind });
   }
 }
 
@@ -552,9 +768,16 @@ async function startStage(stage, mode, tabId) {
     const response = await api(
       `/pinterest-imports/queue?stage=${encodeURIComponent(stage)}&mode=${encodeURIComponent(mode)}`,
     );
-    const queue = Array.isArray(response.pins)
+    let queue = Array.isArray(response.pins)
       ? response.pins.slice(0, BATCH_SIZE)
       : [];
+    let manualReviewExcluded = 0;
+    if (mode === "retry") {
+      const exhausted = await exhaustedPinIds();
+      const before = queue.length;
+      queue = queue.filter((pin) => !exhausted.has(String(pin.pin_id)));
+      manualReviewExcluded = before - queue.length;
+    }
     await setRun({
       version: CHECKPOINT_VERSION,
       kind: "stage",
@@ -571,7 +794,12 @@ async function startStage(stage, mode, tabId) {
       windowId: tab.windowId,
       nextPinAt: null,
       pauseRequested: false,
-      error: queue.length ? "" : "No eligible pins in this queue.",
+      manualReviewExcluded,
+      error: queue.length
+        ? ""
+        : manualReviewExcluded
+          ? `No eligible pins in this queue. ${manualReviewExcluded} need manual review after repeated failures.`
+          : "No eligible pins in this queue.",
     });
     if (queue.length) await processQueue();
     else await refreshInventory();
@@ -584,6 +812,12 @@ async function startStage(stage, mode, tabId) {
 
 async function resumeRun(tabId) {
   if (activeRun) return;
+  const { run: pending = {} } = await browser.storage.local.get("run");
+  if (
+    pending.resumeNotBefore &&
+    Date.now() < new Date(pending.resumeNotBefore).getTime()
+  )
+    return;
   activeRun = true;
   try {
     const { run = {} } = await browser.storage.local.get("run");
@@ -602,6 +836,36 @@ async function resumeRun(tabId) {
     await processQueue();
   } catch (error) {
     await pauseRun(error.message || "The stage could not resume.");
+  } finally {
+    activeRun = false;
+  }
+}
+
+async function autoResume() {
+  if (activeRun) return;
+  const { run = {} } = await browser.storage.local.get("run");
+  if (run.status !== "paused" || run.kind !== "stage") return;
+  if (run.blockKind === "captcha") return;
+  if (
+    run.resumeNotBefore &&
+    Date.now() < new Date(run.resumeNotBefore).getTime()
+  )
+    return;
+  activeRun = true;
+  try {
+    await setRun({
+      status: "running",
+      phase: "queued",
+      pauseRequested: false,
+      error: "",
+    });
+    notify(
+      "Pinterest import resumed",
+      "Resumed automatically after the cooldown elapsed.",
+    );
+    await processQueue();
+  } catch (error) {
+    await pauseRun(error.message || "Automatic resume failed.");
   } finally {
     activeRun = false;
   }
@@ -660,11 +924,23 @@ async function wakeWorker() {
 
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === IMPORT_ALARM) return wakeWorker();
+  if (alarm.name === RESUME_ALARM) return autoResume();
 });
 browser.runtime.onStartup.addListener(async () => {
   const run = await migrateCheckpoint();
-  if (["running", "waiting", "capturing"].includes(run.status))
+  if (["running", "waiting", "capturing"].includes(run.status)) {
     await pauseRun("Firefox restarted. Resume the staged import when ready.");
+    return;
+  }
+  if (
+    run.status === "paused" &&
+    run.kind === "stage" &&
+    run.blockKind !== "captcha" &&
+    run.resumeNotBefore
+  )
+    await browser.alarms.create(RESUME_ALARM, {
+      when: new Date(run.resumeNotBefore).getTime(),
+    });
 });
 
 browser.runtime.onMessage.addListener(async (message) => {
@@ -698,7 +974,8 @@ browser.runtime.onMessage.addListener(async (message) => {
       await browser.tabs.remove(activePinTabId).catch(() => {});
       activePinTabId = null;
     }
-    if (["waiting", "retry_wait"].includes(run.status)) return pauseRun();
+    if (["waiting", "retry_wait"].includes(run.status))
+      return pauseRun("", { resetConsecutive: true });
   }
 });
 

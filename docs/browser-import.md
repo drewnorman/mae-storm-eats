@@ -28,9 +28,9 @@ and preserves completed work.
 Choose **Import next 10** under Import recipes from any browser tab. WordPress
 returns up to ten pending saved pins. The extension opens each saved pin URL in
 an inactive hidden tab, captures its outbound recipe URL, closes the tab, and
-waits 30 seconds before visiting the next pin. WordPress fetches the outbound
-site, extracts Recipe JSON-LD, creates the candidate, and imports its schema
-image without contacting Pinterest.
+waits before visiting the next pin (see Recovery and throttling for the
+pacing). WordPress fetches the outbound site, extracts Recipe JSON-LD, creates
+the candidate, and imports its schema image without contacting Pinterest.
 
 ### 3. Import reviews and photos
 
@@ -51,10 +51,32 @@ the original board. Capturing can resume only from the saved board because it
 depends on the board document.
 
 Pin-specific extraction and media failures are recorded and the batch
-continues. Pinterest login/checkpoint pages, an owner-account mismatch,
-authentication errors, or HTTP 429 throttling pause the whole batch. Firefox
-restart also pauses active work for explicit resume. Pause closes the temporary
-pin tab and keeps all completed server-side work.
+continues, up to 3 attempts per pin; a pin that keeps failing is excluded from
+further automatic retries and flagged in the popup as needing manual review in
+WordPress instead of being retried indefinitely.
+
+The inter-pin wait is a randomized 25-55 seconds rather than a fixed interval,
+and every 4-6 pins it takes a longer 2-4 minute break, so a batch's pacing
+doesn't look like a fixed-interval script. A whole board's backlog is also
+capped at 50 pins per day across the recipe and review stages combined; once
+that cap is reached the batch pauses itself and resumes automatically the
+next day.
+
+Pinterest login/checkpoint pages, an owner-account mismatch, authentication
+errors, or HTTP 429 throttling pause the whole batch. The extension now tells
+these apart: a CAPTCHA/challenge page pauses indefinitely and asks you to
+solve it manually in a normal Pinterest tab before resuming, while a login
+wall, rate limit, or connection/server error schedules an automatic resume
+after an escalating cooldown (10 minutes, then 30 minutes, then 2 hours, then
+a full day) that grows the more times in a row the batch gets blocked. The
+cooldown resets to the first tier once a batch completes cleanly. The popup
+shows a live countdown and keeps the Resume button disabled until the
+cooldown elapses, and records the last 10 pause events (with the detected
+reason) so repeated patterns are visible instead of only the latest one.
+Firefox restart also pauses active work, re-arming any pending auto-resume
+cooldown on the next launch. Pause closes the temporary pin tab and keeps all
+completed server-side work. Desktop notifications fire when a batch pauses,
+auto-resumes, or completes, so a run doesn't need the popup kept open.
 
 ## Security
 

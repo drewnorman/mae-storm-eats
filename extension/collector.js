@@ -42,6 +42,43 @@ function ownerMatches(author, owner) {
   );
 }
 
+function detectBlock() {
+  const haystack = `${location.href} ${document.title}`.toLowerCase();
+  const bodyText = (document.body?.innerText || "").toLowerCase();
+  const hasCaptchaFrame = [...document.querySelectorAll("iframe")].some(
+    (frame) => /recaptcha|hcaptcha|captcha/i.test(frame.src || ""),
+  );
+  const captchaText = /captcha|verify you.?re a human|i.?m not a robot/.test(
+    bodyText,
+  );
+  if (hasCaptchaFrame || captchaText || /challenge/.test(haystack))
+    return {
+      blocked: true,
+      blockKind: "captcha",
+      reason: "Pinterest showed a CAPTCHA or challenge page.",
+    };
+  const rateLimitText = /too many requests|try again later|rate limit/.test(
+    bodyText,
+  );
+  if (rateLimitText)
+    return {
+      blocked: true,
+      blockKind: "rate_limited",
+      reason: "Pinterest showed a rate-limit notice.",
+    };
+  const hasLoginForm = !!document.querySelector("input[type='password']");
+  const loginText = /log in to pinterest|log in to continue|checkpoint/.test(
+    bodyText,
+  );
+  if (/login|checkpoint/.test(haystack) || hasLoginForm || loginText)
+    return {
+      blocked: true,
+      blockKind: "login",
+      reason: "Pinterest login or checkpoint detected.",
+    };
+  return { blocked: false };
+}
+
 async function expandThreads(timeoutMs = 20000) {
   const deadline = Date.now() + timeoutMs;
   let unchanged = 0;
@@ -110,12 +147,16 @@ browser.runtime.onMessage.addListener(async (message) => {
     return { ready: true, url: location.href };
   }
   if (message.type === "discover") {
+    const initialBlock = detectBlock();
+    if (initialBlock.blocked) return initialBlock;
     const pins = new Map();
     let stable = 0;
     while (stable < 15) {
       const state = await browser.storage.local.get("run");
       if (state.run?.pauseRequested)
         return { paused: true, pins: [...pins.values()] };
+      const block = detectBlock();
+      if (block.blocked) return { ...block, pins: [...pins.values()] };
       const before = pins.size;
       document.querySelectorAll('a[href*="/pin/"]').forEach((link) => {
         const id = pinId(link.href);
@@ -143,12 +184,8 @@ browser.runtime.onMessage.addListener(async (message) => {
     return { pins: [...pins.values()], owner: profileFromPage() };
   }
   if (["resolveRecipe", "resolveReviews"].includes(message.type)) {
-    if (/login|checkpoint|challenge/i.test(location.href + document.title)) {
-      return {
-        blocked: true,
-        reason: "Pinterest login or checkpoint detected",
-      };
-    }
+    const block = detectBlock();
+    if (block.blocked) return block;
     const owner = profileFromPage();
     const outbound = [...document.querySelectorAll("a[href^='http']")].find(
       (link) => !/pinterest\.com|pinimg\.com/.test(new URL(link.href).hostname),

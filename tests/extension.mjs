@@ -66,9 +66,12 @@ assert.match(collector, /comments_complete/);
 assert.match(collector, /ownerMatches/);
 
 const background = readFileSync("extension/background.js", "utf8");
-assert.match(background, /CHECKPOINT_VERSION = 4/);
+assert.match(background, /CHECKPOINT_VERSION = 5/);
 assert.match(background, /BATCH_SIZE = 10/);
-assert.match(background, /PIN_DELAY_MS = 30000/);
+assert.match(background, /PIN_DELAY_MIN_MS = 25000/);
+assert.match(background, /PIN_DELAY_MAX_MS = 55000/);
+assert.match(background, /DAILY_PIN_CAP = 50/);
+assert.match(background, /MAX_PIN_RETRIES = 3/);
 assert.match(background, /\/pinterest-imports\/pins/);
 assert.match(background, /\/pinterest-imports\/queue\?stage=/);
 assert.match(background, /resolveStagePin/);
@@ -79,14 +82,14 @@ assert.match(background, /owner_mismatch/);
 assert.doesNotMatch(background, /https:\/\/recipes\.maestorm\.com/);
 assert.doesNotMatch(background, /cookie|access.?token|oauth/i);
 
-function backgroundHarness({ tabs = {}, fetchImpl } = {}) {
+function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
   const state = {
     settings: {
       wordpressHost: "http://wordpress.localhost",
       username: "importer",
       applicationPassword: "test-password",
     },
-    run: { version: 4, windowId: 4 },
+    run: { version: 5, windowId: 4 },
   };
   const context = {
     URL,
@@ -119,9 +122,14 @@ function backgroundHarness({ tabs = {}, fetchImpl } = {}) {
         create: async () => {},
         clear: async () => {},
         onAlarm: { addListener: () => {} },
+        ...alarms,
+      },
+      notifications: {
+        create: async () => {},
       },
       runtime: {
         sendMessage: async () => {},
+        getURL: (path) => path,
         onMessage: { addListener: () => {} },
         onStartup: { addListener: () => {} },
       },
@@ -158,7 +166,19 @@ function backgroundHarness({ tabs = {}, fetchImpl } = {}) {
     },
   };
   vm.runInNewContext(
-    `${background}\nglobalThis.hooks = { waitForTabReady, waitForCollector, resolveStagePin, migrateCheckpoint };`,
+    `${background}\nglobalThis.hooks = {
+      waitForTabReady,
+      waitForCollector,
+      resolveStagePin,
+      migrateCheckpoint,
+      pauseRun,
+      nextPinDelay,
+      dailyCapReached,
+      recordPinProcessed,
+      exhaustedPinIds,
+      incrementRetryCount,
+      clearRetryCount,
+    };`,
     context,
   );
   return { state, hooks: context.hooks };
@@ -204,9 +224,75 @@ migrationHarness.state.run = {
   ],
 };
 const migrated = await migrationHarness.hooks.migrateCheckpoint();
-assert.equal(migrated.version, 4);
+assert.equal(migrated.version, 5);
 assert.equal(migrated.status, "ready");
 assert.equal(migratedCapture, true);
+
+let resumeAlarm = null;
+const pauseHarness = backgroundHarness({
+  alarms: {
+    create: async (name, info) => {
+      resumeAlarm = { name, when: info.when };
+    },
+    clear: async () => {
+      resumeAlarm = null;
+    },
+  },
+});
+pauseHarness.state.run = { version: 5, kind: "stage", windowId: 4 };
+await pauseHarness.hooks.pauseRun("Pinterest showed a rate-limit notice.", {
+  blockKind: "rate_limited",
+});
+assert.equal(pauseHarness.state.run.status, "paused");
+assert.equal(pauseHarness.state.run.consecutiveBlocks, 1);
+assert.ok(pauseHarness.state.run.resumeNotBefore);
+assert.equal(resumeAlarm.name, "mae-storm-import-resume");
+const firstTierMs =
+  new Date(pauseHarness.state.run.resumeNotBefore).getTime() - Date.now();
+assert.ok(firstTierMs > 9 * 60 * 1000 && firstTierMs <= 10 * 60 * 1000 + 2000);
+
+await pauseHarness.hooks.pauseRun("Pinterest showed a rate-limit notice.", {
+  blockKind: "rate_limited",
+});
+assert.equal(pauseHarness.state.run.consecutiveBlocks, 2);
+const secondTierMs =
+  new Date(pauseHarness.state.run.resumeNotBefore).getTime() - Date.now();
+assert.ok(
+  secondTierMs > 29 * 60 * 1000 && secondTierMs <= 30 * 60 * 1000 + 2000,
+);
+
+await pauseHarness.hooks.pauseRun("Solve the CAPTCHA manually.", {
+  blockKind: "captcha",
+});
+assert.equal(pauseHarness.state.run.consecutiveBlocks, 3);
+assert.equal(pauseHarness.state.run.resumeNotBefore, null);
+assert.equal(resumeAlarm, null);
+
+await pauseHarness.hooks.pauseRun("", { resetConsecutive: true });
+assert.equal(pauseHarness.state.run.consecutiveBlocks, 0);
+assert.equal(pauseHarness.state.run.resumeNotBefore, null);
+
+const pacingHarness = backgroundHarness();
+const normalDelay = pacingHarness.hooks.nextPinDelay({
+  pinsSinceLongPause: 0,
+});
+assert.ok(normalDelay.delayMs >= 25000 && normalDelay.delayMs <= 55000);
+const longDelay = pacingHarness.hooks.nextPinDelay({ pinsSinceLongPause: 5 });
+assert.ok(longDelay.delayMs >= 120000 && longDelay.delayMs <= 240000);
+assert.equal(longDelay.pinsSinceLongPause, 0);
+
+const dailyHarness = backgroundHarness();
+assert.equal(await dailyHarness.hooks.dailyCapReached(), false);
+for (let i = 0; i < 50; i += 1) await dailyHarness.hooks.recordPinProcessed();
+assert.equal(dailyHarness.state.dailyUsage.count, 50);
+assert.equal(await dailyHarness.hooks.dailyCapReached(), true);
+
+const retryHarness = backgroundHarness();
+for (let i = 0; i < 3; i += 1)
+  await retryHarness.hooks.incrementRetryCount("789");
+assert.ok((await retryHarness.hooks.exhaustedPinIds()).has("789"));
+await retryHarness.hooks.clearRetryCount("789");
+assert.ok(!(await retryHarness.hooks.exhaustedPinIds()).has("789"));
 
 const collectorListeners = [];
 let scrolls = 0;
@@ -243,13 +329,50 @@ const collectorContext = {
     },
   },
 };
-vm.runInNewContext(collector, collectorContext);
+vm.runInNewContext(
+  `${collector}\nglobalThis.testDetectBlock = detectBlock;`,
+  collectorContext,
+);
 const discovery = await collectorListeners[0]({ type: "discover" });
 assert.deepEqual(
   Array.from(discovery.pins, (pin) => pin.pin_id),
   ["123", "456"],
 );
 assert.ok(scrolls >= 15);
+
+collectorContext.location = { href: "https://www.pinterest.com/pin/1/" };
+collectorContext.document = {
+  title: "",
+  body: { innerText: "please complete this captcha to continue" },
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+assert.equal(collectorContext.testDetectBlock().blockKind, "captcha");
+
+collectorContext.document = {
+  title: "",
+  body: { innerText: "" },
+  querySelector: (selector) =>
+    selector === "input[type='password']" ? {} : null,
+  querySelectorAll: () => [],
+};
+assert.equal(collectorContext.testDetectBlock().blockKind, "login");
+
+collectorContext.document = {
+  title: "",
+  body: { innerText: "too many requests, please try again later" },
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+assert.equal(collectorContext.testDetectBlock().blockKind, "rate_limited");
+
+collectorContext.document = {
+  title: "",
+  body: { innerText: "a delicious pasta recipe" },
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+assert.equal(collectorContext.testDetectBlock().blocked, false);
 
 const popupElements = new Map();
 const popupElement = (selector) => {
@@ -258,9 +381,14 @@ const popupElement = (selector) => {
       hidden: false,
       disabled: false,
       textContent: "",
+      innerHTML: "",
+      children: [],
       max: 0,
       value: 0,
       addEventListener: () => {},
+      appendChild(child) {
+        this.children.push(child);
+      },
       removeAttribute(name) {
         if (name === "value") this.value = undefined;
       },
@@ -269,7 +397,13 @@ const popupElement = (selector) => {
 };
 const popupContext = {
   Object,
-  document: { querySelector: popupElement },
+  Date,
+  setInterval: () => 1,
+  clearInterval: () => {},
+  document: {
+    querySelector: popupElement,
+    createElement: () => ({ textContent: "" }),
+  },
   browser: {
     storage: {
       local: { get: async () => ({ connection: {}, run: {} }) },
@@ -284,7 +418,7 @@ const popupContext = {
   },
 };
 vm.runInNewContext(
-  `${popupScript}\nglobalThis.testRenderRun = renderRun;`,
+  `${popupScript}\nglobalThis.testRenderRun = renderRun;\nglobalThis.testRenderPauseHistory = renderPauseHistory;`,
   popupContext,
 );
 popupContext.testRenderRun({
@@ -297,5 +431,46 @@ assert.equal(
   "Capturing board — 7 pins found…",
 );
 assert.equal(popupElement("#progress").value, undefined);
+
+popupContext.testRenderRun({
+  status: "paused",
+  error: "Pinterest showed a login or checkpoint page.",
+  blockKind: "login",
+  resumeNotBefore: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+  manualReviewExcluded: 2,
+  inventory: {},
+});
+assert.equal(popupElement("#resume").disabled, true);
+assert.equal(popupElement("#resume-countdown").hidden, false);
+assert.match(popupElement("#resume-countdown").textContent, /Auto-resumes in/);
+assert.equal(popupElement("#manual-review-note").hidden, false);
+assert.match(
+  popupElement("#manual-review-note").textContent,
+  /2 pins failed repeatedly/,
+);
+
+popupContext.testRenderRun({
+  status: "paused",
+  error: "Pinterest showed a CAPTCHA.",
+  blockKind: "captcha",
+  resumeNotBefore: null,
+  inventory: {},
+});
+assert.equal(popupElement("#resume").disabled, false);
+assert.equal(popupElement("#resume-countdown").hidden, true);
+
+popupContext.testRenderPauseHistory([
+  {
+    at: new Date().toISOString(),
+    reason: "Pinterest or WordPress throttled the import.",
+    blockKind: "rate_limited",
+  },
+]);
+assert.equal(popupElement("#pause-history").hidden, false);
+assert.equal(popupElement("#pause-history-list").children.length, 1);
+assert.match(
+  popupElement("#pause-history-list").children[0].textContent,
+  /rate limited/,
+);
 
 console.log("Firefox extension tests passed.");

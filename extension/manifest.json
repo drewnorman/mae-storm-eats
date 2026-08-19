@@ -15,7 +15,14 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["activeTab", "alarms", "storage", "tabs", "tabHide"],
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "notifications",
+    "storage",
+    "tabs",
+    "tabHide"
+  ],
   "host_permissions": ["https://www.pinterest.com/*", "https://*.pinimg.com/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": {
