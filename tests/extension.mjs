@@ -160,9 +160,17 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
               },
         remove: async () => {},
         hide: async () => {},
+        show: async () => {},
+        update: async (id, options) => ({
+          id,
+          windowId: 4,
+          status: options.url ? "loading" : "complete",
+          url: options.url || "https://www.pinterest.com/pin/789/",
+        }),
         onUpdated: { addListener: () => {}, removeListener: () => {} },
         ...tabs,
       },
+      windows: { update: async () => {} },
     },
   };
   vm.runInNewContext(
@@ -178,6 +186,7 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
       exhaustedPinIds,
       incrementRetryCount,
       clearRetryCount,
+      resumeBoardTab,
     };`,
     context,
   );
@@ -205,6 +214,142 @@ assert.equal(directResult.status, "complete");
 assert.equal(createdOptions.active, false);
 assert.equal(createdOptions.windowId, 4);
 assert.equal(hidden, 10);
+
+const boardTabs = new Map([
+  [20, { id: 20, windowId: 4, url: "https://www.pinterest.com/mae/recipes/" }],
+  [21, { id: 21, windowId: 4, url: "https://www.pinterest.com/mae/desserts/" }],
+]);
+const boardHarness = backgroundHarness({
+  tabs: {
+    get: async (id) => {
+      if (!boardTabs.has(id)) throw new Error("Missing tab");
+      return boardTabs.get(id);
+    },
+  },
+});
+const savedBoardRun = {
+  boardTabId: 20,
+  boardUrl: "https://www.pinterest.com/mae/recipes/",
+};
+assert.equal(
+  (await boardHarness.hooks.resumeBoardTab(savedBoardRun, 21)).id,
+  20,
+);
+boardTabs.delete(20);
+boardTabs.set(22, {
+  id: 22,
+  windowId: 4,
+  url: "https://www.pinterest.com/mae/recipes/?utm_source=test#pins",
+});
+assert.equal(
+  (await boardHarness.hooks.resumeBoardTab(savedBoardRun, 22)).id,
+  22,
+);
+await assert.rejects(
+  boardHarness.hooks.resumeBoardTab(savedBoardRun, 21),
+  /Open the saved Pinterest board/,
+);
+
+let challengeBlocked = true;
+let challengeShown = false;
+let challengeActivated = false;
+let challengeRemoved = false;
+const challengeTab = {
+  id: 30,
+  windowId: 4,
+  status: "complete",
+  url: "https://www.pinterest.com/pin/789/",
+};
+const challengeHarness = backgroundHarness({
+  tabs: {
+    create: async () => challengeTab,
+    get: async (id) => {
+      if (id !== challengeTab.id || challengeRemoved)
+        throw new Error("Missing tab");
+      return challengeTab;
+    },
+    sendMessage: async (_id, message) => {
+      if (message.type === "ping") return { ready: true };
+      if (challengeBlocked)
+        return {
+          blocked: true,
+          blockKind: "captcha",
+          blockEvidence: "visible_captcha_iframe",
+          reason: "Pinterest displayed a visible CAPTCHA frame.",
+        };
+      return {
+        pin_url: challengeTab.url,
+        source_url: "https://example.com/recipe",
+      };
+    },
+    show: async () => {
+      challengeShown = true;
+    },
+    update: async (_id, options) => {
+      if (options.active) challengeActivated = true;
+      if (options.url) challengeTab.url = options.url;
+      return challengeTab;
+    },
+    remove: async () => {
+      challengeRemoved = true;
+    },
+  },
+});
+await assert.rejects(
+  challengeHarness.hooks.resolveStagePin(
+    { pin_id: "789", pin_url: challengeTab.url },
+    { stage: "recipe", windowId: 4 },
+  ),
+  /visible CAPTCHA frame/,
+);
+assert.equal(challengeShown, true);
+assert.equal(challengeActivated, true);
+assert.equal(challengeRemoved, false);
+assert.equal(challengeHarness.state.run.challengeTabId, 30);
+assert.equal(
+  challengeHarness.state.run.blockEvidence,
+  "visible_captcha_iframe",
+);
+
+challengeBlocked = false;
+const resumedChallenge = await challengeHarness.hooks.resolveStagePin(
+  { pin_id: "789", pin_url: challengeTab.url },
+  { stage: "recipe", windowId: 4, challengeTabId: 30 },
+);
+assert.equal(resumedChallenge.status, "complete");
+assert.equal(challengeRemoved, true);
+assert.equal(challengeHarness.state.run.challengeTabId, null);
+
+let replacementCreated = false;
+const closedChallengeHarness = backgroundHarness({
+  tabs: {
+    get: async (id) => {
+      if (id === 31)
+        return {
+          id: 31,
+          windowId: 4,
+          status: "complete",
+          url: "https://www.pinterest.com/pin/789/",
+        };
+      throw new Error("Missing tab");
+    },
+    create: async (options) => {
+      replacementCreated = true;
+      return {
+        id: 31,
+        windowId: options.windowId,
+        status: "complete",
+        url: options.url,
+      };
+    },
+  },
+});
+const replacementResult = await closedChallengeHarness.hooks.resolveStagePin(
+  { pin_id: "789", pin_url: "https://www.pinterest.com/pin/789/" },
+  { stage: "recipe", windowId: 4, challengeTabId: 30 },
+);
+assert.equal(replacementCreated, true);
+assert.equal(replacementResult.status, "complete");
 
 let migratedCapture = false;
 const migrationHarness = backgroundHarness({
@@ -303,6 +448,8 @@ const collectorContext = {
     callback();
     return 1;
   },
+  getComputedStyle: (node) =>
+    node.style || { display: "block", visibility: "visible", opacity: "1" },
   document: {
     documentElement: { scrollHeight: 1000 },
     querySelector: () => null,
@@ -341,17 +488,73 @@ assert.deepEqual(
 assert.ok(scrolls >= 15);
 
 collectorContext.location = { href: "https://www.pinterest.com/pin/1/" };
+const visibleNode = (innerText = "", width = 800, height = 600) => ({
+  innerText,
+  style: { display: "block", visibility: "visible", opacity: "1" },
+  getBoundingClientRect: () => ({ width, height }),
+});
+const hiddenNode = (innerText = "") => ({
+  ...visibleNode(innerText),
+  style: { display: "none", visibility: "visible", opacity: "1" },
+});
 collectorContext.document = {
   title: "",
-  body: { innerText: "please complete this captcha to continue" },
+  body: visibleNode("please complete this captcha to continue"),
   querySelector: () => null,
-  querySelectorAll: () => [],
+  querySelectorAll: (selector) =>
+    selector === "[role='dialog'], form"
+      ? [visibleNode("please complete this captcha to continue")]
+      : [],
 };
 assert.equal(collectorContext.testDetectBlock().blockKind, "captcha");
+assert.equal(
+  collectorContext.testDetectBlock().blockEvidence,
+  "visible_verification_prompt",
+);
+
+collectorContext.location = {
+  href: "https://www.pinterest.com/challenge/background-check/",
+};
+collectorContext.document = {
+  title: "Challenge recipes",
+  body: visibleNode("A recipe article that mentions captcha technology"),
+  querySelector: () => null,
+  querySelectorAll: (selector) =>
+    selector === "iframe"
+      ? [
+          {
+            src: "https://captcha.example.test/widget",
+            ...hiddenNode(),
+          },
+        ]
+      : [],
+};
+assert.equal(collectorContext.testDetectBlock().blocked, false);
+
+collectorContext.location = { href: "https://www.pinterest.com/pin/1/" };
+collectorContext.document = {
+  title: "",
+  body: visibleNode(""),
+  querySelector: () => null,
+  querySelectorAll: (selector) =>
+    selector === "iframe"
+      ? [
+          {
+            src: "https://captcha.example.test/widget",
+            ...visibleNode("", 304, 78),
+          },
+        ]
+      : [],
+};
+assert.equal(collectorContext.testDetectBlock().blockKind, "captcha");
+assert.equal(
+  collectorContext.testDetectBlock().blockEvidence,
+  "visible_captcha_iframe",
+);
 
 collectorContext.document = {
   title: "",
-  body: { innerText: "" },
+  body: visibleNode(""),
   querySelector: (selector) =>
     selector === "input[type='password']" ? {} : null,
   querySelectorAll: () => [],
@@ -360,7 +563,7 @@ assert.equal(collectorContext.testDetectBlock().blockKind, "login");
 
 collectorContext.document = {
   title: "",
-  body: { innerText: "too many requests, please try again later" },
+  body: visibleNode("too many requests, please try again later"),
   querySelector: () => null,
   querySelectorAll: () => [],
 };
@@ -368,7 +571,7 @@ assert.equal(collectorContext.testDetectBlock().blockKind, "rate_limited");
 
 collectorContext.document = {
   title: "",
-  body: { innerText: "a delicious pasta recipe" },
+  body: visibleNode("a delicious pasta recipe"),
   querySelector: () => null,
   querySelectorAll: () => [],
 };

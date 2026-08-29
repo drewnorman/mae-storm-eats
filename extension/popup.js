@@ -34,6 +34,11 @@ const BLOCK_KIND_LABELS = {
   unknown: "blocked",
 };
 
+const BLOCK_EVIDENCE_LABELS = {
+  visible_captcha_iframe: "visible CAPTCHA frame",
+  visible_verification_prompt: "visible verification prompt",
+};
+
 function blockKindLabel(kind) {
   return BLOCK_KIND_LABELS[kind] || kind;
 }
@@ -116,7 +121,10 @@ function renderPauseHistory(history = []) {
       timeStyle: "short",
     });
     const kind = entry.blockKind ? `${blockKindLabel(entry.blockKind)}: ` : "";
-    li.textContent = `${at} — ${kind}${entry.reason || "Paused"}`;
+    const evidence = entry.blockEvidence
+      ? ` [${BLOCK_EVIDENCE_LABELS[entry.blockEvidence] || entry.blockEvidence}]`
+      : "";
+    li.textContent = `${at} — ${kind}${entry.reason || "Paused"}${evidence}`;
     pauseHistoryList.appendChild(li);
   });
 }

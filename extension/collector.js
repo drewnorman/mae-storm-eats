@@ -42,21 +42,62 @@ function ownerMatches(author, owner) {
   );
 }
 
+function isVisibleChallengeElement(node, minimumWidth = 1, minimumHeight = 1) {
+  if (!node) return false;
+  if (
+    typeof node.checkVisibility === "function" &&
+    !node.checkVisibility({
+      checkOpacity: true,
+      checkVisibilityCSS: true,
+    })
+  )
+    return false;
+  const style = getComputedStyle(node);
+  if (
+    style.display === "none" ||
+    style.visibility === "hidden" ||
+    Number(style.opacity) === 0
+  )
+    return false;
+  const rect = node.getBoundingClientRect();
+  return rect.width >= minimumWidth && rect.height >= minimumHeight;
+}
+
 function detectBlock() {
   const haystack = `${location.href} ${document.title}`.toLowerCase();
-  const bodyText = (document.body?.innerText || "").toLowerCase();
-  const hasCaptchaFrame = [...document.querySelectorAll("iframe")].some(
-    (frame) => /recaptcha|hcaptcha|captcha/i.test(frame.src || ""),
+  const captchaFrame = [...document.querySelectorAll("iframe")].find(
+    (frame) =>
+      /recaptcha|hcaptcha|captcha/i.test(frame.src || "") &&
+      isVisibleChallengeElement(frame, 100, 50),
   );
-  const captchaText = /captcha|verify you.?re a human|i.?m not a robot/.test(
-    bodyText,
-  );
-  if (hasCaptchaFrame || captchaText || /challenge/.test(haystack))
+  if (captchaFrame)
     return {
       blocked: true,
       blockKind: "captcha",
-      reason: "Pinterest showed a CAPTCHA or challenge page.",
+      blockEvidence: "visible_captcha_iframe",
+      reason: "Pinterest displayed a visible CAPTCHA frame.",
     };
+  const promptCandidates = [
+    ...document.querySelectorAll("[role='dialog'], form"),
+  ];
+  if (/captcha|challenge|checkpoint/.test(haystack)) {
+    promptCandidates.push(...document.querySelectorAll("main"), document.body);
+  }
+  const verificationPrompt = promptCandidates.find(
+    (node) =>
+      isVisibleChallengeElement(node) &&
+      /complete (?:this |the )?captcha|verify (?:that )?you(?:'|’)re (?:a )?human|verify your identity|i(?:'|’)m not a robot/i.test(
+        node.innerText || "",
+      ),
+  );
+  if (verificationPrompt)
+    return {
+      blocked: true,
+      blockKind: "captcha",
+      blockEvidence: "visible_verification_prompt",
+      reason: "Pinterest displayed a visible human-verification prompt.",
+    };
+  const bodyText = (document.body?.innerText || "").toLowerCase();
   const rateLimitText = /too many requests|try again later|rate limit/.test(
     bodyText,
   );

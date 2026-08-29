@@ -47,8 +47,11 @@ only ready records. **Retry failed** retries stage-specific failures, while
 
 WordPress owns the durable pin inventory; Firefox stores only the active batch
 checkpoint. Recipe and review batches resume from any tab and do not require
-the original board. Capturing can resume only from the saved board because it
-depends on the board document.
+the original board. Capturing remains bound to the saved board URL because it
+depends on that board document. Resume reuses the saved board tab when it is
+still available. If it was closed or navigated away, reopen that exact board in
+the active tab before choosing **Resume**; the extension will not silently
+switch the capture to another board.
 
 Pin-specific extraction and media failures are recorded and the batch
 continues, up to 3 attempts per pin; a pin that keeps failing is excluded from
@@ -64,11 +67,16 @@ next day.
 
 Pinterest login/checkpoint pages, an owner-account mismatch, authentication
 errors, or HTTP 429 throttling pause the whole batch. The extension now tells
-these apart: a CAPTCHA/challenge page pauses indefinitely and asks you to
-solve it manually in a normal Pinterest tab before resuming, while a login
-wall, rate limit, or connection/server error schedules an automatic resume
-after an escalating cooldown (10 minutes, then 30 minutes, then 2 hours, then
-a full day) that grows the more times in a row the batch gets blocked. The
+these apart: only a visible CAPTCHA frame or explicit visible human-verification
+prompt is treated as a CAPTCHA; hidden integration frames, incidental text, and
+challenge-like URLs do not pause an import by themselves. A confirmed CAPTCHA
+pauses indefinitely. Board capture directs you to its saved board tab. For a
+recipe or review import, the extension reveals and focuses the exact pin tab
+that was challenged, preserves it while paused, and reuses it for the same pin
+after you solve the challenge and choose **Resume**. A login wall, rate limit,
+or connection/server error schedules an automatic resume after an escalating
+cooldown (10 minutes, then 30 minutes, then 2 hours, then a full day) that grows
+the more times in a row the batch gets blocked. The
 cooldown resets to the first tier once a batch completes cleanly. The popup
 shows a live countdown and keeps the Resume button disabled until the
 cooldown elapses, and records the last 10 pause events (with the detected

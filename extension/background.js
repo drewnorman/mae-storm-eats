@@ -79,12 +79,13 @@ async function dailyCapReached() {
   return (dailyUsage.count || 0) >= DAILY_PIN_CAP;
 }
 
-async function recordPause(reason, blockKind) {
+async function recordPause(reason, blockKind, blockEvidence = "") {
   const { pauseHistory = [] } = await browser.storage.local.get("pauseHistory");
   const entry = {
     at: new Date().toISOString(),
     reason,
     blockKind: blockKind || "",
+    blockEvidence,
   };
   const next = [entry, ...pauseHistory].slice(0, PAUSE_HISTORY_LIMIT);
   await browser.storage.local.set({ pauseHistory: next });
@@ -382,6 +383,27 @@ async function boardBinding(tabId) {
   };
 }
 
+function boardUrlMatches(tab, boardUrl) {
+  if (!tab || !isPinterestPage(tab.url)) return false;
+  try {
+    return normalizeBoardUrl(tab.url) === boardUrl;
+  } catch {
+    return false;
+  }
+}
+
+async function resumeBoardTab(run, activeTabId) {
+  if (Number.isInteger(run.boardTabId)) {
+    const saved = await browser.tabs.get(run.boardTabId).catch(() => null);
+    if (boardUrlMatches(saved, run.boardUrl)) return saved;
+  }
+  const active = await browser.tabs.get(activeTabId).catch(() => null);
+  if (boardUrlMatches(active, run.boardUrl)) return active;
+  throw new Error(
+    `Open the saved Pinterest board ${run.boardUrl || "from this capture"} in the active tab, then choose Resume.`,
+  );
+}
+
 function isPinterestPage(url) {
   try {
     const page = new URL(url);
@@ -501,6 +523,8 @@ async function captureBoard(tabId) {
         discovery.reason || "Pinterest login or checkpoint detected.",
       );
       error.blockKind = discovery.blockKind || "unknown";
+      error.blockEvidence = discovery.blockEvidence || "";
+      error.challengeContext = "capture";
       throw error;
     }
     if (!Array.isArray(discovery.pins) || discovery.pins.length === 0)
@@ -532,7 +556,7 @@ async function captureBoard(tabId) {
       blockKind
         ? pauseMessageFor(error, blockKind)
         : error.message || "Pin capture paused unexpectedly.",
-      blockKind ? { blockKind } : {},
+      blockKind ? { blockKind, blockEvidence: error.blockEvidence || "" } : {},
     );
   } finally {
     activeRun = false;
@@ -551,12 +575,21 @@ function globalFailure(error) {
 
 async function resolveStagePin(pin, run) {
   let tab;
+  let preserveTab = false;
   try {
-    tab = await browser.tabs.create({
-      url: pin.pin_url,
-      windowId: run.windowId,
-      active: false,
-    });
+    if (Number.isInteger(run.challengeTabId))
+      tab = await browser.tabs.get(run.challengeTabId).catch(() => null);
+    if (tab && isPinterestPage(tab.url)) {
+      const currentPinId = String(tab.url || "").match(/\/pin\/(\d+)/)?.[1];
+      if (currentPinId !== String(pin.pin_id))
+        tab = await browser.tabs.update(tab.id, { url: pin.pin_url });
+    } else {
+      tab = await browser.tabs.create({
+        url: pin.pin_url,
+        windowId: run.windowId,
+        active: false,
+      });
+    }
     activePinTabId = tab.id;
     await setRun({
       phase: "loading_pin",
@@ -576,6 +609,22 @@ async function resolveStagePin(pin, run) {
       );
       error.failureKind = "pinterest_blocked";
       error.blockKind = result.blockKind || "unknown";
+      error.blockEvidence = result.blockEvidence || "";
+      if (error.blockKind === "captcha") {
+        preserveTab = true;
+        error.challengeContext = "stage";
+        error.challengeTabId = tab.id;
+        await setRun({
+          challengeTabId: tab.id,
+          tempTabId: tab.id,
+          blockEvidence: error.blockEvidence,
+        });
+        await browser.tabs.show(tab.id).catch(() => {});
+        await browser.tabs.update(tab.id, { active: true }).catch(() => {});
+        await browser.windows
+          ?.update(tab.windowId, { focused: true })
+          .catch(() => {});
+      }
       throw error;
     }
     if (run.stage === "recipe") {
@@ -619,9 +668,15 @@ async function resolveStagePin(pin, run) {
       error: error.message || "Pin processing failed.",
     };
   } finally {
-    if (tab?.id) await browser.tabs.remove(tab.id).catch(() => {});
+    if (tab?.id && !preserveTab)
+      await browser.tabs.remove(tab.id).catch(() => {});
     if (activePinTabId === tab?.id) activePinTabId = null;
-    await setRun({ tempTabId: null });
+    if (!preserveTab)
+      await setRun({
+        tempTabId: null,
+        challengeTabId: null,
+        blockEvidence: null,
+      });
   }
 }
 
@@ -632,8 +687,11 @@ async function schedulePump(delayMs = 0) {
 }
 
 function pauseMessageFor(error, blockKind) {
-  if (blockKind === "captcha")
-    return "Pinterest showed a CAPTCHA. Solve it manually in a normal Pinterest tab, then choose Resume.";
+  if (blockKind === "captcha") {
+    if (error.challengeContext === "capture")
+      return "Pinterest is asking for verification in the saved board tab. Complete it there, then choose Resume.";
+    return "Pinterest is asking for verification in the pin tab opened by the importer. Complete it there, then choose Resume.";
+  }
   if (blockKind === "rate_limited")
     return "Pinterest or WordPress throttled the import. The batch will resume automatically after a cooldown.";
   if (blockKind === "login")
@@ -658,16 +716,21 @@ async function pauseRun(error = "", options = {}) {
     }
   }
   const notable = Boolean(blockKind || options.resumeAt);
-  if (notable) await recordPause(error, blockKind);
+  const blockEvidence = options.blockEvidence || currentRun.blockEvidence || "";
+  if (notable) await recordPause(error, blockKind, blockEvidence);
+  const preserveChallenge =
+    blockKind === "captcha" && Number.isInteger(currentRun.challengeTabId);
   await setRun({
     status: "paused",
     phase: "paused",
     pauseRequested: false,
     currentPin: null,
-    tempTabId: null,
+    tempTabId: preserveChallenge ? currentRun.challengeTabId : null,
+    challengeTabId: preserveChallenge ? currentRun.challengeTabId : null,
     nextPinAt: null,
     error,
     blockKind,
+    blockEvidence: blockKind ? blockEvidence : null,
     consecutiveBlocks,
     resumeNotBefore,
   });
@@ -692,6 +755,8 @@ async function processQueue() {
       consecutiveBlocks: 0,
       resumeNotBefore: null,
       blockKind: null,
+      blockEvidence: null,
+      challengeTabId: null,
     });
     notify(
       "Pinterest import complete",
@@ -756,7 +821,10 @@ async function processQueue() {
       return pauseRun("", { resetConsecutive: true });
     const blockKind =
       error.blockKind || (error.status === 429 ? "rate_limited" : "service");
-    return pauseRun(pauseMessageFor(error, blockKind), { blockKind });
+    return pauseRun(pauseMessageFor(error, blockKind), {
+      blockKind,
+      blockEvidence: error.blockEvidence || "",
+    });
   }
 }
 
@@ -791,6 +859,8 @@ async function startStage(stage, mode, tabId) {
       failed: 0,
       currentPin: null,
       tempTabId: null,
+      challengeTabId: null,
+      blockEvidence: null,
       windowId: tab.windowId,
       nextPinAt: null,
       pauseRequested: false,
@@ -822,10 +892,14 @@ async function resumeRun(tabId) {
   try {
     const { run = {} } = await browser.storage.local.get("run");
     if (run.kind === "capture") {
+      const boardTab = await resumeBoardTab(run, tabId);
       activeRun = false;
-      return captureBoard(tabId);
+      return captureBoard(boardTab.id);
     }
-    const tab = await browser.tabs.get(tabId);
+    let tab = null;
+    if (Number.isInteger(run.challengeTabId))
+      tab = await browser.tabs.get(run.challengeTabId).catch(() => null);
+    if (!tab) tab = await browser.tabs.get(tabId);
     await setRun({
       windowId: tab.windowId,
       status: "running",
