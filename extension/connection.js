@@ -56,6 +56,14 @@ function normalizedHost(value) {
       "WordPress site URL must begin with http:// or https:// and include a hostname.",
     );
   }
+  const localHttp =
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  if (url.protocol !== "https:" && !localHttp) {
+    throw new Error(
+      "Production WordPress connections require HTTPS; HTTP is allowed only for localhost development.",
+    );
+  }
   return url.origin;
 }
 

@@ -2,7 +2,9 @@
 /**
  * Plugin Name: Mae Storm Recipes
  * Description: First-party recipe content model, imports, and private access controls for recipes.maestorm.com.
+ * x-release-please-start-version
  * Version: 0.1.0
+ * x-release-please-end
  * Requires at least: 6.5
  * Requires PHP: 8.3
  * Author: Mae Storm
@@ -24,7 +26,9 @@ if (! defined('ABSPATH')) {
 define('MAE_STORM_RECIPES_FILE', __FILE__);
 define('MAE_STORM_RECIPES_PATH', plugin_dir_path(__FILE__));
 define('MAE_STORM_RECIPES_URL', plugin_dir_url(__FILE__));
+// x-release-please-start-version
 define('MAE_STORM_RECIPES_VERSION', '0.1.0');
+// x-release-please-end
 
 $mae_storm_recipes_autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
 

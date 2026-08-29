@@ -1,0 +1,60 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Released SemVer without the v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Validate released image
+        id: image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release view "v${version}" --repo drewnorman/mae-storm-recipes >/dev/null
+          digest="$(docker buildx imagetools inspect "ghcr.io/drewnorman/mae-storm-recipes:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          [[ "${digest}" == sha256:* ]]
+          echo "Deploying ghcr.io/drewnorman/mae-storm-recipes@${digest}"
+          echo "digest=${digest}" >>"${GITHUB_OUTPUT}"
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy approved immutable image
+        env:
+          IMAGE_DIGEST: ${{ needs.resolve.outputs.digest }}
+          VERSION: ${{ inputs.version }}
+          GCE_ZONE: ${{ vars.GCE_ZONE }}
+          GCE_INSTANCE: ${{ vars.GCE_INSTANCE }}
+        run: |
+          gcloud compute ssh "${GCE_INSTANCE}" --zone "${GCE_ZONE}" --command \
+            "sudo /opt/recipes/bin/deploy '${VERSION}' 'ghcr.io/drewnorman/mae-storm-recipes@${IMAGE_DIGEST}' '${GITHUB_SHA}'"

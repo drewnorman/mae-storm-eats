@@ -3,8 +3,16 @@ Theme Name: Mae Storm Recipes
 Theme URI: https://recipes.maestorm.com
 Author: Mae Storm
 Description: Private Timber theme for the Mae Storm recipe archive.
+x-release-please-start-version
 Version: 0.1.0
+x-release-please-end
 Requires at least: 6.8
 Requires PHP: 8.3
 Text Domain: mae-storm-recipes
 */
+
+:root {
+  /* x-release-please-start-version */
+  --mae-storm-recipes-release: "0.1.0";
+  /* x-release-please-end */
+}

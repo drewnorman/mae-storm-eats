@@ -17,6 +17,17 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt);
+
+      checks = forAllSystems (system:
+        let pkgs = import nixpkgs { inherit system; };
+        in {
+          source = pkgs.runCommand "recipes-source-check" { } ''
+            test -f ${./package.json}
+            touch $out
+          '';
+        });
+
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };

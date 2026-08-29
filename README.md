@@ -11,7 +11,8 @@ This repository owns the app code and local development tooling:
 - Local Podman Compose environment.
 - App CI, release automation, and formatting checks.
 
-Shared host, DNS, GCP, backup, and production orchestration concerns belong in the separate infrastructure repository.
+This repository also owns the single production stack's OpenTofu, Quadlet,
+backup, restore, release, and approved deployment automation.
 
 ## Development
 
@@ -88,7 +89,7 @@ Timber is a required app dependency. The active app theme registers the Timber
 locations used by plugin-facing templates, including the private login template
 rendered by the access gate.
 
-## Production Handoff
+## Production Release and Operations
 
 Build the app artifact consumed by the shared infra repo:
 
@@ -101,6 +102,11 @@ production Composer dependencies, and produces a normalized archive. Use
 `just test-artifact` to build it twice and verify its contents and byte-for-byte
 reproducibility.
 
-The service boundary, runtime secrets, persistent data, and backup expectations are documented in `docs/service-contract.md`.
+GitHub Releases publish this bundle, its checksums, compatibility notes, and a
+pinned GHCR image. Deployments are separate manual workflows protected by the
+GitHub `production` environment. The service interface is in
+[docs/service-contract.md](docs/service-contract.md); deployment, extension
+handoff, backup, rollback, and disaster recovery are in
+[docs/operations.md](docs/operations.md).
 
 App-owned OpenTofu state, when this repository needs it, uses the shared personal state bucket from `infra-state`: `gs://drew-infra-tofu-state` with prefix `recipes/prod`. The backend configuration lives in `tofu/versions.tf`.

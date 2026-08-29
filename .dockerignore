@@ -1,0 +1,10 @@
+.git
+.github
+.direnv
+.terraform
+config/dev
+dist
+node_modules
+vendor
+*.tfstate*
+.env*

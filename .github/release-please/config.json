@@ -3,7 +3,32 @@
     ".": {
       "release-type": "simple",
       "package-name": "recipes",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "include-v-in-tag": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "extension/manifest.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "plugins/mae-storm-recipes/mae-storm-recipes.php"
+        },
+        {
+          "type": "generic",
+          "path": "themes/mae-storm-recipes/style.css"
+        },
+        {
+          "type": "generic",
+          "path": "VERSION"
+        }
+      ]
     }
   }
 }

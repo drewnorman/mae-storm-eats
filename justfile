@@ -22,6 +22,7 @@ check:
   @scripts/test/php-syntax.sh
   @scripts/test/timber-boundary.sh
   @scripts/test/image-pins.sh
+  @scripts/test/production-contract.sh
   @corepack yarn fmt:check
   @corepack yarn typecheck
   @corepack yarn build
@@ -62,3 +63,8 @@ dev-reset:
 
 test-dev-boot:
   @scripts/test/podman-boot-smoke.sh
+
+check-infra:
+  @tofu -chdir=tofu fmt -check
+  @tofu -chdir=tofu init -backend=false
+  @tofu -chdir=tofu validate
