@@ -3,6 +3,7 @@
     ".": {
       "release-type": "simple",
       "package-name": "mae-storm-eats",
+      "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
       "extra-files": [

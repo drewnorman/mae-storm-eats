@@ -1,8 +1,17 @@
 name: Publish Release Assets
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing approved v-prefixed GitHub release tag
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,20 +28,27 @@ jobs:
       - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
 
       - name: Validate release version
         id: version
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          test "${GITHUB_REF_NAME}" = "v${version}"
+          [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null
+          version="${RELEASE_TAG#v}"
           test "$(jq -r .version package.json)" = "${version}"
           test "$(jq -r .version extension/manifest.json)" = "${version}"
           grep -Fq "Version: ${version}" plugins/mae-storm-eats/mae-storm-eats.php
           grep -Fq "Version: ${version}" themes/mae-storm-eats/style.css
+          test "$(git tag --points-at HEAD | rg -Fxc "${RELEASE_TAG}")" = 1
           echo "version=${version}" >>"${GITHUB_OUTPUT}"
+          echo "revision=$(git rev-parse HEAD)" >>"${GITHUB_OUTPUT}"
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -68,7 +84,7 @@ jobs:
           tags: ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
           build-args: |
             APP_VERSION=${{ steps.version.outputs.version }}
-            APP_REVISION=${{ github.sha }}
+            APP_REVISION=${{ steps.version.outputs.revision }}
 
       - name: Record immutable image digest
         run: printf '%s@%s\n' "${IMAGE}" "${{ steps.image.outputs.digest }}" >dist/IMAGE_DIGEST
@@ -76,4 +92,5 @@ jobs:
       - name: Attach permanent release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" dist/mae-storm-eats-*.tar.gz dist/SHA256SUMS dist/COMPATIBILITY.md dist/IMAGE_DIGEST --clobber
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release upload "${RELEASE_TAG}" dist/mae-storm-eats-*.tar.gz dist/SHA256SUMS dist/COMPATIBILITY.md dist/IMAGE_DIGEST --clobber
