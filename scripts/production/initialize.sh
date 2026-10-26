@@ -35,10 +35,11 @@ if ! "${wp[@]}" user get pinterest-importer --field=ID >/dev/null 2>&1; then
         --role=recipe_importer --user_pass="${generated_password}" --porcelain >/dev/null
 fi
 "${wp[@]}" user set-role pinterest-importer recipe_importer
+"${wp[@]}" user update pinterest-importer --user_email="${importer_email}"
 
 "${wp[@]}" eval 'if (!class_exists(\Timber\Timber::class)) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
 "${wp[@]}" plugin is-active mae-storm-eats
 "${wp[@]}" theme is-active mae-storm-eats
-"${wp[@]}" eval '$user = get_user_by("login", "pinterest-importer"); if (!$user || $user->roles !== ["recipe_importer"] || !user_can($user, "mae_storm_eats_import_recipes") || user_can($user, "publish_posts")) { fwrite(STDERR, "Pinterest importer privileges are incorrect\n"); exit(1); }'
+"${wp[@]}" eval '$user = get_user_by("login", "pinterest-importer"); if (!$user || $user->roles !== ["recipe_importer"] || $user->user_email !== getenv("MAE_STORM_EATS_IMPORTER_EMAIL") || !user_can($user, "mae_storm_eats_import_recipes") || user_can($user, "publish_posts")) { fwrite(STDERR, "Pinterest importer privileges are incorrect\n"); exit(1); }'
 
 echo "WordPress initialization verified for ${site_url}."
