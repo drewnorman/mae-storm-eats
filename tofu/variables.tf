@@ -41,13 +41,3 @@ variable "operator_email" {
   type        = string
   description = "Email address for uptime, backup, and capacity alerts."
 }
-
-variable "ssh_user" {
-  type    = string
-  default = "maestormeats"
-}
-
-variable "ssh_public_key" {
-  type      = string
-  sensitive = true
-}

@@ -55,6 +55,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           GCE_ZONE: ${{ vars.GCE_ZONE }}
           GCE_INSTANCE: ${{ vars.GCE_INSTANCE }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
-          gcloud compute ssh "${GCE_INSTANCE}" --zone "${GCE_ZONE}" --command \
+          gcloud compute ssh "${GCE_INSTANCE}" --project "${GCP_PROJECT_ID}" --zone "${GCE_ZONE}" --tunnel-through-iap --quiet --command \
             "sudo /opt/mae-storm-eats/bin/deploy '${VERSION}' 'ghcr.io/drewnorman/mae-storm-eats@${IMAGE_DIGEST}' '${GITHUB_SHA}'"

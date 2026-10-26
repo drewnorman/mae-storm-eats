@@ -91,7 +91,7 @@ rendered by the access gate.
 
 ## Production Release and Operations
 
-Build the app artifact consumed by the shared infra repo:
+Build the app artifact for a release:
 
 ```sh
 just build-artifact
@@ -109,4 +109,6 @@ GitHub `production` environment. The service interface is in
 handoff, backup, rollback, and disaster recovery are in
 [docs/operations.md](docs/operations.md).
 
-App-owned OpenTofu state, when this repository needs it, uses the shared personal state bucket from `infra-state`: `gs://drew-infra-tofu-state` with prefix `mae-storm-eats/prod`. The backend configuration lives in `tofu/versions.tf`.
+The production OpenTofu state uses the shared personal state bucket from
+`infra-state`: `gs://drew-infra-tofu-state` with prefix `mae-storm-eats/prod`.
+The backend configuration lives in `tofu/versions.tf`.

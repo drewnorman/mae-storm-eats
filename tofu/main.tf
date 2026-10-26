@@ -1,10 +1,65 @@
 locals {
-  name = "mae-storm-eats"
+  name        = "mae-storm-eats"
+  wif_pool_id = "github-actions"
+}
+
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_project_service" "iap" {
+  project            = var.project_id
+  service            = "iap.googleapis.com"
+  disable_on_destroy = false
+}
+
+# The shared project already owns the GitHub Actions pool. This app owns only
+# its provider and deploy identity, so shared-infra's trust remains unchanged.
+resource "google_iam_workload_identity_pool_provider" "github_deploy" {
+  workload_identity_pool_id          = local.wif_pool_id
+  workload_identity_pool_provider_id = local.name
+  display_name                       = "Mae Storm Eats production deploy"
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  attribute_condition = "assertion.repository == 'drewnorman/mae-storm-eats' && assertion.ref == 'refs/heads/master' && assertion.environment == 'production'"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account" "deploy" {
+  account_id   = "mae-storm-eats-deploy"
+  display_name = "Mae Storm Eats production deploy"
+}
+
+resource "google_service_account_iam_member" "deploy_wif" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${local.wif_pool_id}/attribute.repository/drewnorman/mae-storm-eats"
+}
+
+# gcloud compute ssh needs project discovery, while OS Login and IAP are
+# limited to this app's VM below.
+resource "google_project_iam_member" "deploy_compute_viewer" {
+  project = var.project_id
+  role    = "roles/compute.viewer"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
 }
 
 resource "google_service_account" "host" {
   account_id   = "mae-storm-eats-production"
   display_name = "Mae Storm Eats production host"
+}
+
+resource "google_service_account_iam_member" "deploy_host_act_as" {
+  service_account_id = google_service_account.host.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deploy.email}"
 }
 
 resource "google_project_iam_member" "host_secret_access" {
@@ -73,7 +128,6 @@ resource "google_compute_instance" "production" {
 
   metadata = {
     enable-oslogin               = "TRUE"
-    ssh-keys                     = "${var.ssh_user}:${var.ssh_public_key}"
     mae-storm-eats-bootstrap-ref = var.bootstrap_ref
     startup-script               = file("${path.module}/startup.sh")
   }
@@ -83,6 +137,24 @@ resource "google_compute_instance" "production" {
   }
 }
 
+resource "google_compute_instance_iam_member" "deploy_os_admin" {
+  project       = var.project_id
+  zone          = google_compute_instance.production.zone
+  instance_name = google_compute_instance.production.name
+  role          = "roles/compute.osAdminLogin"
+  member        = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_iap_tunnel_instance_iam_member" "deploy_iap_ssh" {
+  project  = var.project_id
+  zone     = google_compute_instance.production.zone
+  instance = google_compute_instance.production.name
+  role     = "roles/iap.tunnelResourceAccessor"
+  member   = "serviceAccount:${google_service_account.deploy.email}"
+
+  depends_on = [google_project_service.iap]
+}
+
 resource "google_compute_firewall" "web" {
   name    = "${local.name}-web"
   network = "default"
@@ -90,6 +162,37 @@ resource "google_compute_firewall" "web" {
     protocol = "tcp"
     ports    = ["80", "443"]
   }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["mae-storm-eats-web"]
+}
+
+resource "google_compute_firewall" "ssh_iap" {
+  name     = "${local.name}-ssh-iap"
+  network  = "default"
+  priority = 900
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["35.235.240.0/20"]
+  target_tags   = ["mae-storm-eats-web"]
+}
+
+# The default VPC may have a broad default-allow-ssh rule. Explicitly deny
+# direct SSH at a lower precedence than the IAP allow above.
+resource "google_compute_firewall" "ssh_direct_deny" {
+  name      = "${local.name}-deny-direct-ssh"
+  network   = "default"
+  priority  = 1000
+  direction = "INGRESS"
+
+  deny {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["mae-storm-eats-web"]
 }

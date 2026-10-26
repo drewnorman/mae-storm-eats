@@ -5,18 +5,26 @@
 There is no staging environment. Run the repository checks and local container
 drills, then launch directly to production during the owner's acceptance window.
 
-1. Publish the approved release and verify its bundle, checksums, and GHCR image
-   digest. Record the release tag's full commit SHA as `bootstrap_ref` in the
-   untracked `production.tfvars`. The production host must be able to clone the
-   source repository at that commit.
+1. Merge the approved Release Please PR. Its workflow publishes the bundle,
+   checksums, and GHCR image for the resulting `v*` release; if publishing is
+   interrupted, dispatch **Publish Release Assets** with that tag. Verify the
+   release assets and image digest, make the GHCR package public, and confirm
+   the image can be inspected without authentication. Record the release tag's
+   full commit SHA as `bootstrap_ref` in the untracked `production.tfvars`.
+   The production host must be able to clone the source repository at that
+   commit.
 2. Review `tofu plan -var-file=production.tfvars`, then apply it to create the
    host, static IP, protected disk, DNS, secret, backup bucket, uptime check,
-   and alerts. The startup script installs host operations files at exactly
+   alerts, and a repository-specific GitHub deploy identity. The startup script installs host operations files at exactly
    `bootstrap_ref`; the Quadlet containers remain dormant until deployment.
 3. Add the production `KEY=VALUE` bundle as a Secret Manager version. Never put
    it in OpenTofu variables, GitHub artifacts, shell tracing, or Git.
-4. Configure the GitHub `production` environment with required reviewers and
-   set its GCE instance/zone variables and workload-identity secrets.
+4. Configure the GitHub `production` environment with required reviewers. Set
+   `GCP_PROJECT_ID`, `GCE_INSTANCE`, and `GCE_ZONE` variables from the OpenTofu
+   project, instance, and zone. Set `GCP_WORKLOAD_IDENTITY_PROVIDER` and
+   `GCP_DEPLOY_SERVICE_ACCOUNT` secrets from the matching OpenTofu outputs.
+   The deploy job uses OS Login over an IAP tunnel; no SSH key or public SSH
+   ingress is needed.
 5. Dispatch **Deploy Production** with the approved version and approve the
    displayed immutable digest. The first deployment initializes the empty
    database, checks the site, records release metadata, and takes its first
@@ -33,8 +41,8 @@ complete tagged-extension import including images and reviews.
 
 1. Clone `https://github.com/drewnorman/mae-storm-eats` into a stable local
    directory.
-2. Run `git fetch --tags` and `git checkout v0.1.0` (or the specifically approved
-   tag). Never load a moving `master` checkout.
+2. Run `git fetch --tags` and check out the specifically approved `v*` release
+   tag. Never load a moving `master` checkout.
 3. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
    Add-on**, and select `extension/manifest.json`.
 4. Connect only to `https://eats.maestorm.com` using `pinterest-importer`
