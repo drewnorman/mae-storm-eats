@@ -46,7 +46,7 @@ jobs:
           test "$(jq -r .version extension/manifest.json)" = "${version}"
           grep -Fq "Version: ${version}" plugins/mae-storm-eats/mae-storm-eats.php
           grep -Fq "Version: ${version}" themes/mae-storm-eats/style.css
-          test "$(git tag --points-at HEAD | rg -Fxc "${RELEASE_TAG}")" = 1
+          test "$(git tag --points-at HEAD | grep -Fxc "${RELEASE_TAG}")" = 1
           echo "version=${version}" >>"${GITHUB_OUTPUT}"
           echo "revision=$(git rev-parse HEAD)" >>"${GITHUB_OUTPUT}"
 
