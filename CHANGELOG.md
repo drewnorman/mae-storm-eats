@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.2.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.1...v0.2.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **build:** load plugin classes in production image ([d4b548d](https://github.com/drewnorman/mae-storm-eats/commit/d4b548d5698e746207ff7f652dd42ca3c4b25a3b))
+* **ops:** reconcile importer email during initialization ([e73a475](https://github.com/drewnorman/mae-storm-eats/commit/e73a475f23bda5ef892546ab7d211c99643a6bef))
+
 ## [0.2.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.0...v0.2.1) (2026-10-26)
 
 
