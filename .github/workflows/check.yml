@@ -22,6 +22,12 @@ jobs:
       - name: Bootstrap
         run: nix develop --command just bootstrap
 
+      - name: Check production image autoload
+        run: |
+          docker build --target composer -f Containerfile -t mae-storm-eats-composer-check .
+          docker run --rm --entrypoint php mae-storm-eats-composer-check \
+            -r 'require "/src/vendor/autoload.php"; exit(class_exists("MaeStorm\\Eats\\Activation") ? 0 : 1);'
+
       - name: Run checks
         run: nix develop --command just check
 

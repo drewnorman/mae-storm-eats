@@ -10,6 +10,7 @@ RUN corepack enable && corepack yarn install --immutable && corepack yarn build
 FROM docker.io/library/composer:2.8.11@sha256:6133e78c003c0625fb763aa131622f537cd696ed14d98b5caa108db9be02ae9b AS composer
 WORKDIR /src
 COPY composer.json composer.lock ./
+COPY plugins/mae-storm-eats/src plugins/mae-storm-eats/src
 RUN composer install --no-dev --no-interaction --prefer-dist --classmap-authoritative
 
 FROM ${WORDPRESS_IMAGE}
@@ -29,6 +30,7 @@ COPY scripts/production/initialize.sh /usr/local/bin/mae-storm-eats-initialize
 RUN chmod 0755 /usr/local/bin/mae-storm-eats-image-entrypoint \
     /usr/local/bin/mae-storm-eats-initialize \
     && echo 'ce34ddd838f7351d6759068d09793f26755463b4a4610a5a5c0a97b68220d85c  /usr/local/bin/wp' | sha256sum -c - \
+    && php -r 'require "/usr/src/wordpress/wp-content/vendor/autoload.php"; exit(class_exists("MaeStorm\\Eats\\Activation") ? 0 : 1);' \
     && chown -R www-data:www-data /usr/src/wordpress/wp-content
 ENV APP_VERSION="${APP_VERSION}" \
     WORDPRESS_CONFIG_EXTRA="require '/usr/local/etc/mae-storm-eats/wp-config-extra.php';"
