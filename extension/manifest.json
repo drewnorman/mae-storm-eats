@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mae Storm Eats Pinterest Importer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Imports the signed-in owner's Pinterest board recipes and reviews into a configured WordPress site.",
   "icons": {
     "32": "icons/mae-storm-eats.svg",

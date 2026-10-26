@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.2.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.0...v0.2.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ci:** validate release tag without ripgrep ([c6fbdad](https://github.com/drewnorman/mae-storm-eats/commit/c6fbdad5ebcaf15b63372e27c11406bc33d73f09))
+* **ops:** align backup schedule with monitoring window ([44c4d29](https://github.com/drewnorman/mae-storm-eats/commit/44c4d29edd107b0a6de3663aa6b9c02550338411))
+
 ## [0.2.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.1.0...v0.2.0) (2026-10-26)
 
 
