@@ -298,13 +298,14 @@ resource "google_monitoring_alert_policy" "backup" {
   display_name = "Mae Storm Eats backup missing"
   combiner     = "OR"
   conditions {
-    display_name = "No successful backup in 30 hours"
+    display_name = "No successful backup in 23.5 hours"
     condition_absent {
       filter   = "metric.type=\"logging.googleapis.com/user/mae_storm_eats_backup_success\" AND resource.type=\"global\""
-      duration = "108000s"
+      duration = "84600s"
     }
   }
   notification_channels = [google_monitoring_notification_channel.operator.name]
+  depends_on            = [google_logging_metric.backup_success]
 }
 
 resource "google_logging_metric" "backup_success" {

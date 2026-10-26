@@ -33,6 +33,10 @@ drills, then launch directly to production during the owner's acceptance window.
    plugin/theme, Timber, release metadata, the first backup in GCS, and the
    uptime and backup alerts.
 
+The backup timer runs at 04:15 and 16:15 UTC with up to 20 minutes of
+random delay. Monitoring alerts if no successful backup is logged for 23.5
+hours; the first deployment requires a real backup before enabling the timer.
+
 Production begins empty. Schedule the owner's acceptance window with a content
 freeze. The owner validates login, archive/search, a recipe, print output, and one
 complete tagged-extension import including images and reviews.

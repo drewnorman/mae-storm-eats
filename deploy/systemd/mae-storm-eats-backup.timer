@@ -1,8 +1,9 @@
 [Unit]
-Description=Daily Mae Storm Eats production backup
+Description=Twice-daily Mae Storm Eats production backup
 
 [Timer]
 OnCalendar=*-*-* 04:15:00 UTC
+OnCalendar=*-*-* 16:15:00 UTC
 Persistent=true
 RandomizedDelaySec=20m
 
