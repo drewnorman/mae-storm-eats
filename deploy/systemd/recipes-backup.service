@@ -1,9 +1,0 @@
-[Unit]
-Description=Back up Recipes database, uploads, config, and release metadata
-After=recipes-db.service
-RequiresMountsFor=/var/lib/shared
-
-[Service]
-Type=oneshot
-EnvironmentFile=/var/lib/shared/runtime/wordpress.env
-ExecStart=/opt/recipes/bin/backup

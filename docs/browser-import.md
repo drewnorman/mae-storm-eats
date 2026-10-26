@@ -91,7 +91,7 @@ auto-resumes, or completes, so a run doesn't need the popup kept open.
 Installed host access is limited to `www.pinterest.com` and Pinterest's
 `pinimg.com` image hosts. The extension asks for access only to the configured
 WordPress origin. WordPress accepts imports only from users with
-`mae_storm_import_recipes`; revoking the Application Password disables the
+`mae_storm_eats_import_recipes`; revoking the Application Password disables the
 extension. Destination fetching retains public-address validation, HTTP/HTTPS
 enforcement, timeouts, and response-size limits. Uploaded media remains limited
 to content-sniffed JPEG, PNG, WebP, or GIF files up to 10 MB.

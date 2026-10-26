@@ -1,12 +1,12 @@
 {
-  "name": "@mae-storm/recipes",
+  "name": "@mae-storm/eats",
   "version": "0.1.0",
   "private": true,
   "packageManager": "yarn@4.9.2",
   "scripts": {
     "build": "yarn build:css && yarn build:js",
-    "build:css": "tailwindcss -c tailwind.config.js -i themes/mae-storm-recipes/assets/src/app.css -o themes/mae-storm-recipes/assets/dist/app.css --postcss",
-    "build:js": "esbuild themes/mae-storm-recipes/assets/src/app.ts --bundle --format=iife --target=es2018 --sourcemap --outfile=themes/mae-storm-recipes/assets/dist/app.js",
+    "build:css": "tailwindcss -c tailwind.config.js -i themes/mae-storm-eats/assets/src/app.css -o themes/mae-storm-eats/assets/dist/app.css --postcss",
+    "build:js": "esbuild themes/mae-storm-eats/assets/src/app.ts --bundle --format=iife --target=es2018 --sourcemap --outfile=themes/mae-storm-eats/assets/dist/app.js",
     "commitlint": "commitlint",
     "dev": "yarn build:css --watch & yarn build:js --watch",
     "fmt": "prettier --write .",

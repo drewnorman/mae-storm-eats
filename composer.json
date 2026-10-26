@@ -1,5 +1,5 @@
 {
-  "name": "mae-storm/recipes",
+  "name": "mae-storm/eats",
   "description": "Private WordPress recipe application.",
   "type": "project",
   "license": "proprietary",
@@ -9,12 +9,12 @@
   },
   "autoload": {
     "psr-4": {
-      "MaeStorm\\Recipes\\": "plugins/mae-storm-recipes/src/"
+      "MaeStorm\\Eats\\": "plugins/mae-storm-eats/src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "MaeStorm\\Recipes\\Tests\\": "tests/"
+      "MaeStorm\\Eats\\Tests\\": "tests/"
     }
   },
   "scripts": {

@@ -9,7 +9,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/drewnorman/mae-storm-recipes
+  IMAGE: ghcr.io/drewnorman/mae-storm-eats
 
 jobs:
   publish:
@@ -30,8 +30,8 @@ jobs:
           test "${GITHUB_REF_NAME}" = "v${version}"
           test "$(jq -r .version package.json)" = "${version}"
           test "$(jq -r .version extension/manifest.json)" = "${version}"
-          grep -Fq "Version: ${version}" plugins/mae-storm-recipes/mae-storm-recipes.php
-          grep -Fq "Version: ${version}" themes/mae-storm-recipes/style.css
+          grep -Fq "Version: ${version}" plugins/mae-storm-eats/mae-storm-eats.php
+          grep -Fq "Version: ${version}" themes/mae-storm-eats/style.css
           echo "version=${version}" >>"${GITHUB_OUTPUT}"
 
       - name: Install Nix
@@ -44,11 +44,11 @@ jobs:
         shell: bash
         run: |
           cd dist
-          sha256sum "recipes-${{ steps.version.outputs.version }}.tar.gz" >SHA256SUMS
+          sha256sum "mae-storm-eats-${{ steps.version.outputs.version }}.tar.gz" >SHA256SUMS
           printf '%s\n' \
             "Release ${{ steps.version.outputs.version }} compatibility" \
             "WordPress: 7.0.x; PHP: 8.3; plugin/theme/extension: ${{ steps.version.outputs.version }}" \
-            "The Firefox extension is private source loaded temporarily from this tag; no XPI is published." \
+            "The Firefox extension is operator-managed source loaded temporarily from this tag; no XPI is published." \
             >COMPATIBILITY.md
 
       - name: Log in to GHCR
@@ -76,4 +76,4 @@ jobs:
       - name: Attach permanent release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" dist/recipes-*.tar.gz dist/SHA256SUMS dist/COMPATIBILITY.md dist/IMAGE_DIGEST --clobber
+        run: gh release upload "${GITHUB_REF_NAME}" dist/mae-storm-eats-*.tar.gz dist/SHA256SUMS dist/COMPATIBILITY.md dist/IMAGE_DIGEST --clobber

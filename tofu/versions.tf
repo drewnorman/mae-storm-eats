@@ -3,7 +3,7 @@ terraform {
 
   backend "gcs" {
     bucket = "drew-infra-tofu-state"
-    prefix = "recipes/prod"
+    prefix = "mae-storm-eats/prod"
   }
 
   required_providers {

@@ -391,7 +391,7 @@ await pauseHarness.hooks.pauseRun("Pinterest showed a rate-limit notice.", {
 assert.equal(pauseHarness.state.run.status, "paused");
 assert.equal(pauseHarness.state.run.consecutiveBlocks, 1);
 assert.ok(pauseHarness.state.run.resumeNotBefore);
-assert.equal(resumeAlarm.name, "mae-storm-import-resume");
+assert.equal(resumeAlarm.name, "mae-storm-eats-import-resume");
 const firstTierMs =
   new Date(pauseHarness.state.run.resumeNotBefore).getTime() - Date.now();
 assert.ok(firstTierMs > 9 * 60 * 1000 && firstTierMs <= 10 * 60 * 1000 + 2000);

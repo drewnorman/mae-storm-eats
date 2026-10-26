@@ -3,7 +3,7 @@
 ## First launch
 
 There is no staging environment. Run the repository checks and local container
-drills, then launch directly to production during Angela's acceptance window.
+drills, then launch directly to production during the owner's acceptance window.
 
 1. Publish the approved release and verify its bundle, checksums, and GHCR image
    digest. Record the release tag's full commit SHA as `bootstrap_ref` in the
@@ -25,19 +25,19 @@ drills, then launch directly to production during Angela's acceptance window.
    plugin/theme, Timber, release metadata, the first backup in GCS, and the
    uptime and backup alerts.
 
-Production begins empty. Schedule Angela's acceptance window with a content
-freeze. She validates login, archive/search, a recipe, print output, and one
+Production begins empty. Schedule the owner's acceptance window with a content
+freeze. The owner validates login, archive/search, a recipe, print output, and one
 complete tagged-extension import including images and reviews.
 
-## Angela's temporary Firefox extension
+## Owner's temporary Firefox extension
 
-1. Clone `https://github.com/drewnorman/mae-storm-recipes` into a stable local
+1. Clone `https://github.com/drewnorman/mae-storm-eats` into a stable local
    directory.
 2. Run `git fetch --tags` and `git checkout v0.1.0` (or the specifically approved
    tag). Never load a moving `master` checkout.
 3. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
    Add-on**, and select `extension/manifest.json`.
-4. Connect only to `https://recipes.maestorm.com` using `pinterest-importer`
+4. Connect only to `https://eats.maestorm.com` using `pinterest-importer`
    and its WordPress Application Password from the password manager.
 5. Firefox removes temporary add-ons at restart. Repeat step 3. Extension local
    storage normally survives a Firefox restart, but a temporary add-on's data
@@ -46,8 +46,8 @@ complete tagged-extension import including images and reviews.
 6. To update, fetch tags, check out the approved tag, then reload the temporary
    add-on from `about:debugging`.
 
-The extension ID is stable and its source version matches the release. It is a
-private, operator-managed development tool: no XPI, AMO listing, signing, or
+The extension ID is stable and its source version matches the release. It is an
+operator-managed development tool: no XPI, AMO listing, signing, or
 automatic updates are provided. This installation model does not authorize
 automated Pinterest extraction or eliminate Pinterest terms-of-service risk.
 
@@ -57,10 +57,10 @@ After initialization, create the handoff credential without recording it in
 shell history or logs:
 
 ```sh
-sudo podman exec -it recipes wp --allow-root user application-password create pinterest-importer "Angela Firefox" --porcelain
+sudo podman exec -it mae-storm-eats wp --allow-root user application-password create pinterest-importer "Owner Firefox" --porcelain
 ```
 
-Put the result directly in Angela's password manager. Revoke it with `wp user
+Put the result directly in the owner's password manager. Revoke it with `wp user
 application-password delete` and issue a new one. Rotate database, admin,
 frontend, and salt values by adding a new Secret Manager version, hydrating it,
 and restarting the affected units. Database rotations require changing MariaDB
@@ -91,7 +91,7 @@ running restore:
 set -a
 source /var/lib/shared/runtime/wordpress.env
 set +a
-RECIPES_CONFIRM_RESTORE=YES /opt/recipes/bin/restore /path/to/archive.tar.gz /var/lib/shared
+MAE_STORM_EATS_CONFIRM_RESTORE=YES /opt/mae-storm-eats/bin/restore /path/to/archive.tar.gz /var/lib/shared
 ```
 
 The restore replaces the database, uploads, runtime configuration, and release
@@ -100,5 +100,5 @@ After a real recovery, restore the recorded image digest and units, then run
 the initializer and smoke tests. Check recipe images and one private recipe.
 
 Launch is complete only after a real production backup is present in GCS, the
-local restore and image rollback drills pass, alerts are verified, and Angela
+local restore and image rollback drills pass, alerts are verified, and the owner
 completes acceptance with the matching release extension.

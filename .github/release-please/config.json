@@ -2,7 +2,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "recipes",
+      "package-name": "mae-storm-eats",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
       "extra-files": [
@@ -18,11 +18,11 @@
         },
         {
           "type": "generic",
-          "path": "plugins/mae-storm-recipes/mae-storm-recipes.php"
+          "path": "plugins/mae-storm-eats/mae-storm-eats.php"
         },
         {
           "type": "generic",
-          "path": "themes/mae-storm-recipes/style.css"
+          "path": "themes/mae-storm-eats/style.css"
         },
         {
           "type": "generic",

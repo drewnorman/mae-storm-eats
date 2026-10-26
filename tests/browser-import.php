@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use MaeStorm\Recipes\RecipeJsonLd;
-use MaeStorm\Recipes\RecipeImages;
-use MaeStorm\Recipes\RecipeImporter;
-use MaeStorm\Recipes\BrowserImport;
-use MaeStorm\Recipes\ReviewReconciler;
-use MaeStorm\Recipes\ReviewMeta;
-use MaeStorm\Recipes\RecipeMeta;
-use MaeStorm\Recipes\SourceFetcher;
-use MaeStorm\Recipes\PinImportStore;
+use MaeStorm\Eats\RecipeJsonLd;
+use MaeStorm\Eats\RecipeImages;
+use MaeStorm\Eats\RecipeImporter;
+use MaeStorm\Eats\BrowserImport;
+use MaeStorm\Eats\ReviewReconciler;
+use MaeStorm\Eats\ReviewMeta;
+use MaeStorm\Eats\RecipeMeta;
+use MaeStorm\Eats\SourceFetcher;
+use MaeStorm\Eats\PinImportStore;
 
 /** @var array<string,array<string,mixed>> */
 $registeredPostMeta = [];
@@ -125,17 +125,17 @@ function is_wp_error(mixed $value): bool
     return $value instanceof WP_Error;
 }
 
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/RecipeJsonLd.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/RecipeImages.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/RecipeImporter.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ReviewReconciler.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ServiceProviderInterface.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ContentTypes.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/RecipeMeta.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/BrowserImport.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/ReviewMeta.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/SourceFetcher.php';
-require_once __DIR__ . '/../plugins/mae-storm-recipes/src/PinImportStore.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/RecipeJsonLd.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/RecipeImages.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/RecipeImporter.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/ReviewReconciler.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/ServiceProviderInterface.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/ContentTypes.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/RecipeMeta.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/BrowserImport.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/ReviewMeta.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/SourceFetcher.php';
+require_once __DIR__ . '/../plugins/mae-storm-eats/src/PinImportStore.php';
 
 function assertSameValue(mixed $expected, mixed $actual, string $message): void
 {
@@ -145,15 +145,15 @@ function assertSameValue(mixed $expected, mixed $actual, string $message): void
 }
 
 $browserImport = new BrowserImport();
-$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-recipes/v1/pinterest-imports/status';
+$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-eats/v1/pinterest-imports/status';
 assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Pretty import REST routes must allow Application Password authentication.');
-$_SERVER['REQUEST_URI'] = '/blog/wp-json/mae-storm-recipes/v1/pinterest-imports/123/resolve';
+$_SERVER['REQUEST_URI'] = '/blog/wp-json/mae-storm-eats/v1/pinterest-imports/123/resolve';
 assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Import REST routes under a subdirectory must allow Application Password authentication.');
-$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-recipes/v1/pinterest-imports-elsewhere';
+$_SERVER['REQUEST_URI'] = '/wp-json/mae-storm-eats/v1/pinterest-imports-elsewhere';
 assertSameValue(false, $browserImport->allowApplicationPassword(false), 'Similar route names must not enable Application Password authentication.');
 $_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/users';
 assertSameValue(false, $browserImport->allowApplicationPassword(false), 'Unrelated REST routes must not enable Application Password authentication.');
-$_GET['rest_route'] = '/mae-storm-recipes/v1/pinterest-imports';
+$_GET['rest_route'] = '/mae-storm-eats/v1/pinterest-imports';
 assertSameValue(true, $browserImport->allowApplicationPassword(false), 'Query-parameter import REST routes must allow Application Password authentication.');
 assertSameValue(true, $browserImport->allowApplicationPassword(true), 'Prior API request classification must be preserved.');
 unset($_GET['rest_route'], $_SERVER['REQUEST_URI']);

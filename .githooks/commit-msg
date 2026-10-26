@@ -11,6 +11,6 @@ if [ ! -d node_modules ]; then
   exit 1
 fi
 
-XDG_CACHE_HOME="${RECIPES_CACHE_HOME:-/tmp/recipes-cache}" \
-  COREPACK_HOME="${RECIPES_COREPACK_HOME:-/tmp/recipes-corepack}" \
+XDG_CACHE_HOME="${MAE_STORM_EATS_CACHE_HOME:-/tmp/mae-storm-eats-cache}" \
+  COREPACK_HOME="${MAE_STORM_EATS_COREPACK_HOME:-/tmp/mae-storm-eats-corepack}" \
   corepack yarn commitlint --edit "$1"

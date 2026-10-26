@@ -3,8 +3,8 @@ set -euo pipefail
 
 archive="${1:?backup archive is required}"
 shared_root="${2:-/var/lib/shared}"
-[[ "${RECIPES_CONFIRM_RESTORE:-}" == YES ]] || {
-    echo "Set RECIPES_CONFIRM_RESTORE=YES for this destructive restore." >&2
+[[ "${MAE_STORM_EATS_CONFIRM_RESTORE:-}" == YES ]] || {
+    echo "Set MAE_STORM_EATS_CONFIRM_RESTORE=YES for this destructive restore." >&2
     exit 1
 }
 test -s "${archive}"
@@ -17,7 +17,7 @@ for required in database.sql uploads runtime deployed.env; do
 done
 test -s "${stage}/database.sql"
 
-if ! podman exec -i "${RECIPES_DB_CONTAINER:-recipes-db}" mariadb --user=root \
+if ! podman exec -i "${MAE_STORM_EATS_DB_CONTAINER:-mae-storm-eats-db}" mariadb --user=root \
     --password="${MARIADB_ROOT_PASSWORD:?MARIADB_ROOT_PASSWORD is required}" <"${stage}/database.sql"; then
     echo "Database restore failed; persistent files were not changed." >&2
     exit 1

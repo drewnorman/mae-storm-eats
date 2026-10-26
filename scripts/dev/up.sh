@@ -4,7 +4,7 @@ set -eu
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repo_root="$(CDPATH= cd -- "${script_dir}/../.." && pwd)"
 compose=(podman-compose -f compose.yaml)
-plugin_file="/var/www/html/wp-content/plugins/mae-storm-recipes/mae-storm-recipes.php"
+plugin_file="/var/www/html/wp-content/plugins/mae-storm-eats/mae-storm-eats.php"
 
 cd "${repo_root}"
 
@@ -20,8 +20,8 @@ fi
 
 for required_file in \
     vendor/autoload.php \
-    themes/mae-storm-recipes/assets/dist/app.css \
-    themes/mae-storm-recipes/assets/dist/app.js; do
+    themes/mae-storm-eats/assets/dist/app.css \
+    themes/mae-storm-eats/assets/dist/app.js; do
     if [ ! -s "${required_file}" ]; then
         echo "${required_file} is missing; run 'just bootstrap' first." >&2
         exit 1
@@ -41,7 +41,7 @@ if ! "${compose[@]}" exec -T wordpress test -f "${plugin_file}"; then
 fi
 
 if ! "${compose[@]}" exec -T wordpress test -f "${plugin_file}"; then
-    echo "Mae Storm Recipes is still missing from the WordPress container." >&2
+    echo "Mae Storm Eats is still missing from the WordPress container." >&2
     echo "Expected: ${plugin_file}" >&2
     exit 1
 fi
@@ -49,13 +49,13 @@ fi
 attempt=1
 while [ "${attempt}" -le 30 ]; do
     if "${compose[@]}" exec -T wordpress php /dev/stdin < "${script_dir}/bootstrap-wordpress.php"; then
-        if [ "${RECIPES_DEV_DETACH:-0}" = "1" ]; then
-            echo "WordPress is running at http://wordpress.recipes.localhost"
+        if [ "${MAE_STORM_EATS_DEV_DETACH:-0}" = "1" ]; then
+            echo "WordPress is running at http://wordpress.mae-storm-eats.localhost"
             exit 0
         fi
 
         "${compose[@]}" stop
-        echo "Starting WordPress at http://wordpress.recipes.localhost"
+        echo "Starting WordPress at http://wordpress.mae-storm-eats.localhost"
         echo "Press Ctrl-C to stop the containers."
         exec "${compose[@]}" up
     fi

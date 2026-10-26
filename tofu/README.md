@@ -1,4 +1,4 @@
-# Recipes OpenTofu
+# Mae Storm Eats OpenTofu
 
 This root provisions the one production GCE host, static IP, separately
 protected persistent disk, Cloudflare DNS, Secret Manager container, versioned
@@ -10,7 +10,7 @@ state bucket:
 terraform {
   backend "gcs" {
     bucket = "drew-infra-tofu-state"
-    prefix = "recipes/prod"
+    prefix = "mae-storm-eats/prod"
   }
 }
 ```

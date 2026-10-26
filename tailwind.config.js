@@ -8,9 +8,9 @@ const extract = fluidTailwind.extract;
 module.exports = {
   content: {
     files: [
-      "./themes/mae-storm-recipes/**/*.php",
-      "./themes/mae-storm-recipes/**/*.twig",
-      "./themes/mae-storm-recipes/assets/src/**/*.ts",
+      "./themes/mae-storm-eats/**/*.php",
+      "./themes/mae-storm-eats/**/*.twig",
+      "./themes/mae-storm-eats/assets/src/**/*.ts",
     ],
     extract: {
       DEFAULT: extract(),

@@ -1,0 +1,18 @@
+/*
+Theme Name: Mae Storm Eats
+Theme URI: https://eats.maestorm.com
+Author: Mae Storm
+Description: Private Timber theme for the Mae Storm recipe archive.
+x-release-please-start-version
+Version: 0.1.0
+x-release-please-end
+Requires at least: 6.8
+Requires PHP: 8.3
+Text Domain: mae-storm-eats
+*/
+
+:root {
+  /* x-release-please-start-version */
+  --mae-storm-eats-release: "0.1.0";
+  /* x-release-please-end */
+}

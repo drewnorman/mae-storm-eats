@@ -1,6 +1,6 @@
-# Recipes
+# Mae Storm Eats
 
-Private WordPress recipe application for `recipes.maestorm.com`.
+Private WordPress recipe application for `eats.maestorm.com`.
 
 This repository owns the app code and local development tooling:
 
@@ -46,13 +46,13 @@ Commit messages must follow Conventional Commits. `just bootstrap` and
 commit messages on pull requests and pushes to `master`.
 
 The local WordPress environment is defined in `compose.yaml`. Plugin and theme
-code is mounted from `plugins/mae-storm-recipes` and
-`themes/mae-storm-recipes`.
+code is mounted from `plugins/mae-storm-eats` and
+`themes/mae-storm-eats`.
 
 `just dev-up` verifies its bootstrap outputs and Podman prerequisites, installs
-WordPress when the database is new, and activates the Mae Storm Recipes plugin
+WordPress when the database is new, and activates the Mae Storm Eats plugin
 and theme. It then runs the containers in the foreground with live logs. The app
-is available at <http://wordpress.recipes.localhost>. Press Ctrl-C to stop the
+is available at <http://wordpress.mae-storm-eats.localhost>. Press Ctrl-C to stop the
 containers.
 
 The Compose stack expects the external `local-proxy` Podman network and its
@@ -109,4 +109,4 @@ GitHub `production` environment. The service interface is in
 handoff, backup, rollback, and disaster recovery are in
 [docs/operations.md](docs/operations.md).
 
-App-owned OpenTofu state, when this repository needs it, uses the shared personal state bucket from `infra-state`: `gs://drew-infra-tofu-state` with prefix `recipes/prod`. The backend configuration lives in `tofu/versions.tf`.
+App-owned OpenTofu state, when this repository needs it, uses the shared personal state bucket from `infra-state`: `gs://drew-infra-tofu-state` with prefix `mae-storm-eats/prod`. The backend configuration lives in `tofu/versions.tf`.

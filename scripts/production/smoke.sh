@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-url="${RECIPES_SITE_URL:?RECIPES_SITE_URL is required}"
+url="${MAE_STORM_EATS_SITE_URL:?MAE_STORM_EATS_SITE_URL is required}"
 url="${url%/}"
-wp=(podman exec recipes wp --allow-root --path=/var/www/html)
+wp=(podman exec mae-storm-eats wp --allow-root --path=/var/www/html)
 response="$(mktemp)"
 trap 'rm -f -- "${response}"' EXIT
 
-"${wp[@]}" plugin is-active mae-storm-recipes
-"${wp[@]}" theme is-active mae-storm-recipes
+"${wp[@]}" plugin is-active mae-storm-eats
+"${wp[@]}" theme is-active mae-storm-eats
 "${wp[@]}" eval 'if (!class_exists(\Timber\Timber::class)) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
 
 curl --fail --silent --show-error --location --max-time 20 "${url}/wp-login.php" >/dev/null

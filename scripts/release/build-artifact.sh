@@ -8,10 +8,10 @@ cd "${repo_root}"
 
 version="${1:-$(git rev-parse --short HEAD)}"
 artifact_dir="dist"
-artifact="${artifact_dir}/recipes-${version}.tar.gz"
+artifact="${artifact_dir}/mae-storm-eats-${version}.tar.gz"
 source_date_epoch="$(git show -s --format=%ct HEAD)"
 temporary_dir="$(mktemp -d)"
-stage_dir="${temporary_dir}/recipes"
+stage_dir="${temporary_dir}/mae-storm-eats"
 
 cleanup() {
     rm -rf -- "${temporary_dir:?}"
@@ -35,8 +35,8 @@ git archive HEAD | tar -x -C "${stage_dir}"
 
 (
     cd "${stage_dir}"
-    export XDG_CACHE_HOME="${RECIPES_CACHE_HOME:-/tmp/recipes-cache}"
-    export COREPACK_HOME="${RECIPES_COREPACK_HOME:-/tmp/recipes-corepack}"
+    export XDG_CACHE_HOME="${MAE_STORM_EATS_CACHE_HOME:-/tmp/mae-storm-eats-cache}"
+    export COREPACK_HOME="${MAE_STORM_EATS_COREPACK_HOME:-/tmp/mae-storm-eats-corepack}"
     corepack yarn install --immutable
     corepack yarn build
     composer install \
@@ -49,8 +49,8 @@ git archive HEAD | tar -x -C "${stage_dir}"
 
 for required_file in \
     "${stage_dir}/vendor/autoload.php" \
-    "${stage_dir}/themes/mae-storm-recipes/assets/dist/app.css" \
-    "${stage_dir}/themes/mae-storm-recipes/assets/dist/app.js"; do
+    "${stage_dir}/themes/mae-storm-eats/assets/dist/app.css" \
+    "${stage_dir}/themes/mae-storm-eats/assets/dist/app.js"; do
     if [ ! -s "${required_file}" ]; then
         echo "Artifact staging is missing ${required_file#${stage_dir}/}." >&2
         exit 1
@@ -68,7 +68,7 @@ tar \
     --group=0 \
     --numeric-owner \
     -C "${temporary_dir}" \
-    -cf - recipes \
+    -cf - mae-storm-eats \
     | gzip -n > "${artifact}"
 
 echo "${artifact}"

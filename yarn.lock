@@ -446,9 +446,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mae-storm/recipes@workspace:.":
+"@mae-storm/eats@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@mae-storm/recipes@workspace:."
+  resolution: "@mae-storm/eats@workspace:."
   dependencies:
     "@commitlint/cli": "npm:^19.8.1"
     "@commitlint/config-conventional": "npm:^19.8.1"

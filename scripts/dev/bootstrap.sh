@@ -13,8 +13,8 @@ for command in node corepack composer git; do
     fi
 done
 
-export XDG_CACHE_HOME="${RECIPES_CACHE_HOME:-/tmp/recipes-cache}"
-export COREPACK_HOME="${RECIPES_COREPACK_HOME:-/tmp/recipes-corepack}"
+export XDG_CACHE_HOME="${MAE_STORM_EATS_CACHE_HOME:-/tmp/mae-storm-eats-cache}"
+export COREPACK_HOME="${MAE_STORM_EATS_COREPACK_HOME:-/tmp/mae-storm-eats-corepack}"
 
 mkdir -p config/dev/uploads
 corepack yarn install --immutable
@@ -23,8 +23,8 @@ corepack yarn build
 git config core.hooksPath .githooks
 
 for asset in \
-    themes/mae-storm-recipes/assets/dist/app.css \
-    themes/mae-storm-recipes/assets/dist/app.js; do
+    themes/mae-storm-eats/assets/dist/app.css \
+    themes/mae-storm-eats/assets/dist/app.js; do
     if [ ! -s "${asset}" ]; then
         echo "Bootstrap did not create ${asset}." >&2
         exit 1

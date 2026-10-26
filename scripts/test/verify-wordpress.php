@@ -7,19 +7,19 @@ require '/var/www/html/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 $failures = [];
-$admin_user = getenv('RECIPES_DEV_ADMIN_USER') ?: 'admin';
-$admin_password = getenv('RECIPES_DEV_ADMIN_PASSWORD') ?: 'password';
+$admin_user = getenv('MAE_STORM_EATS_DEV_ADMIN_USER') ?: 'admin';
+$admin_password = getenv('MAE_STORM_EATS_DEV_ADMIN_PASSWORD') ?: 'password';
 
 if (! is_blog_installed()) {
     $failures[] = 'WordPress is not installed.';
 }
 
-if (! is_plugin_active('mae-storm-recipes/mae-storm-recipes.php')) {
-    $failures[] = 'Mae Storm Recipes plugin is inactive.';
+if (! is_plugin_active('mae-storm-eats/mae-storm-eats.php')) {
+    $failures[] = 'Mae Storm Eats plugin is inactive.';
 }
 
-if (get_stylesheet() !== 'mae-storm-recipes') {
-    $failures[] = 'Mae Storm Recipes theme is inactive.';
+if (get_stylesheet() !== 'mae-storm-eats') {
+    $failures[] = 'Mae Storm Eats theme is inactive.';
 }
 
 if (! class_exists(\Timber\Timber::class)) {
@@ -27,7 +27,7 @@ if (! class_exists(\Timber\Timber::class)) {
 }
 
 foreach (['app.css', 'app.js'] as $asset) {
-    if (! is_file(get_theme_root() . '/mae-storm-recipes/assets/dist/' . $asset)) {
+    if (! is_file(get_theme_root() . '/mae-storm-eats/assets/dist/' . $asset)) {
         $failures[] = "Theme asset {$asset} is unavailable.";
     }
 }
@@ -76,7 +76,7 @@ if (! $import_user instanceof WP_User) {
                 ],
             ]);
             $authenticated_response = file_get_contents(
-                'http://127.0.0.1/wp-json/mae-storm-recipes/v1/pinterest-imports/status',
+                'http://127.0.0.1/wp-json/mae-storm-eats/v1/pinterest-imports/status',
                 false,
                 $authenticated_context
             );
@@ -94,7 +94,7 @@ if (! $import_user instanceof WP_User) {
                 ],
             ]);
             $invalid_response = file_get_contents(
-                'http://127.0.0.1/wp-json/mae-storm-recipes/v1/pinterest-imports/status',
+                'http://127.0.0.1/wp-json/mae-storm-eats/v1/pinterest-imports/status',
                 false,
                 $invalid_context
             );

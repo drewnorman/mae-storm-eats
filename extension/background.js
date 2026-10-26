@@ -4,8 +4,8 @@ let activeVerification = null;
 let activeController = null;
 let activePinTabId = null;
 
-const IMPORT_ALARM = "mae-storm-import-pump";
-const RESUME_ALARM = "mae-storm-import-resume";
+const IMPORT_ALARM = "mae-storm-eats-import-pump";
+const RESUME_ALARM = "mae-storm-eats-import-resume";
 const CHECKPOINT_VERSION = 5;
 const BATCH_SIZE = 10;
 const PIN_DELAY_MIN_MS = 25000;
@@ -209,7 +209,7 @@ function connectionVerificationMessage(error) {
   if (error.status === 403)
     return "This WordPress account does not have permission to import recipes. Assign it the Recipe Importer role and try again.";
   if (error.status === 404)
-    return "The WordPress import endpoint was not found. Confirm the Mae Storm Recipes plugin is active and try again.";
+    return "The WordPress import endpoint was not found. Confirm the Mae Storm Eats plugin is active and try again.";
   if (Number.isInteger(error.status))
     return `WordPress could not verify the connection (HTTP ${error.status}). Check the site and try again.`;
   return error.message || "Connection verification failed.";
@@ -307,7 +307,7 @@ async function api(path, options = {}) {
   let response;
   try {
     response = await timedFetch(
-      `${auth.wordpressHost}/wp-json/mae-storm-recipes/v1${path}`,
+      `${auth.wordpressHost}/wp-json/mae-storm-eats/v1${path}`,
       {
         ...options,
         credentials: "omit",

@@ -8,8 +8,8 @@ created_proxy_network=0
 
 cd "${repo_root}"
 
-export COMPOSE_PROJECT_NAME="recipes-smoke-$$"
-export RECIPES_TRAEFIK_ENABLE=false
+export COMPOSE_PROJECT_NAME="mae-storm-eats-smoke-$$"
+export MAE_STORM_EATS_TRAEFIK_ENABLE=false
 
 cleanup() {
     "${compose[@]}" down -v >/dev/null 2>&1 || true
@@ -27,13 +27,13 @@ if ! podman network exists local-proxy; then
     created_proxy_network=1
 fi
 
-RECIPES_DEV_DETACH=1 just dev-up
-RECIPES_DEV_DETACH=1 just dev-up
+MAE_STORM_EATS_DEV_DETACH=1 just dev-up
+MAE_STORM_EATS_DEV_DETACH=1 just dev-up
 
 "${compose[@]}" exec -T wordpress php /dev/stdin < "${script_dir}/verify-wordpress.php"
 
 rendered_config="$("${compose[@]}" config)"
-grep -Fq 'traefik.http.routers.recipes-wordpress.rule' <<< "${rendered_config}"
+grep -Fq 'traefik.http.routers.mae-storm-eats-wordpress.rule' <<< "${rendered_config}"
 grep -Fq 'local-proxy' <<< "${rendered_config}"
 
 echo "Podman boot smoke passed."

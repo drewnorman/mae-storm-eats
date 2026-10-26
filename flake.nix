@@ -1,5 +1,5 @@
 {
-  description = "Development environment for the Mae Storm recipes WordPress app";
+  description = "Development environment for the Mae Storm Eats WordPress app";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -22,7 +22,7 @@
       checks = forAllSystems (system:
         let pkgs = import nixpkgs { inherit system; };
         in {
-          source = pkgs.runCommand "recipes-source-check" { } ''
+          source = pkgs.runCommand "mae-storm-eats-source-check" { } ''
             test -f ${./package.json}
             touch $out
           '';
@@ -51,7 +51,7 @@
 
             shellHook = ''
               export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-              echo "recipes dev shell: run 'just bootstrap', then 'just dev-up'."
+              echo "mae-storm-eats dev shell: run 'just bootstrap', then 'just dev-up'."
             '';
           };
         });

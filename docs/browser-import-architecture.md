@@ -19,7 +19,7 @@ destination is captured, recipe extraction bypasses Pinterest entirely. Review
 collection is deferred to its own explicit stage.
 
 The extension authenticates to WordPress as a non-interactive service identity
-with only `read` and `mae_storm_import_recipes`. The owner's normal editorial
+with only `read` and `mae_storm_eats_import_recipes`. The owner's normal editorial
 account is not stored in the extension. Imports are additive and resumable:
 normal queues select only pending work, failures and completed records require
 explicit retry or refresh actions, and a later capture never deletes recipes,

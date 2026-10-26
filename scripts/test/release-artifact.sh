@@ -7,7 +7,7 @@ repo_root="$(CDPATH= cd -- "${script_dir}/../.." && pwd)"
 cd "${repo_root}"
 
 version="${1:-$(git rev-parse --short HEAD)}"
-artifact="dist/recipes-${version}.tar.gz"
+artifact="dist/mae-storm-eats-${version}.tar.gz"
 temporary_dir="$(mktemp -d)"
 
 cleanup() {
@@ -27,13 +27,13 @@ fi
 contents="$(tar -tzf "${artifact}")"
 
 for required_path in \
-    recipes/vendor/autoload.php \
-    recipes/vendor/timber/timber/src/Timber.php \
-    recipes/themes/mae-storm-recipes/assets/dist/app.css \
-    recipes/themes/mae-storm-recipes/assets/dist/app.js \
-    recipes/plugins/mae-storm-recipes/mae-storm-recipes.php \
-    recipes/composer.lock \
-    recipes/yarn.lock; do
+    mae-storm-eats/vendor/autoload.php \
+    mae-storm-eats/vendor/timber/timber/src/Timber.php \
+    mae-storm-eats/themes/mae-storm-eats/assets/dist/app.css \
+    mae-storm-eats/themes/mae-storm-eats/assets/dist/app.js \
+    mae-storm-eats/plugins/mae-storm-eats/mae-storm-eats.php \
+    mae-storm-eats/composer.lock \
+    mae-storm-eats/yarn.lock; do
     if ! grep -Fxq "${required_path}" <<< "${contents}"; then
         echo "Artifact is missing ${required_path}." >&2
         exit 1
@@ -46,6 +46,6 @@ if grep -Eq '(^|/)(node_modules|uploads|\.git|\.direnv|\.terraform)(/|$)|(^|/)\.
 fi
 
 tar -xzf "${artifact}" -C "${temporary_dir}"
-php -r "require '${temporary_dir}/recipes/vendor/autoload.php'; exit(class_exists('Timber\\\\Timber') ? 0 : 1);"
+php -r "require '${temporary_dir}/mae-storm-eats/vendor/autoload.php'; exit(class_exists('Timber\\\\Timber') ? 0 : 1);"
 
 echo "Release artifact is complete and reproducible."

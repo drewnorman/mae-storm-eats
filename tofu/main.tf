@@ -1,10 +1,10 @@
 locals {
-  name = "mae-storm-recipes"
+  name = "mae-storm-eats"
 }
 
 resource "google_service_account" "host" {
-  account_id   = "recipes-production"
-  display_name = "Recipes production host"
+  account_id   = "mae-storm-eats-production"
+  display_name = "Mae Storm Eats production host"
 }
 
 resource "google_project_iam_member" "host_secret_access" {
@@ -45,7 +45,7 @@ resource "google_compute_instance" "production" {
   name         = "${local.name}-production"
   machine_type = "e2-medium"
   zone         = var.zone
-  tags         = ["recipes-web"]
+  tags         = ["mae-storm-eats-web"]
 
   boot_disk {
     initialize_params {
@@ -56,7 +56,7 @@ resource "google_compute_instance" "production" {
 
   attached_disk {
     source      = google_compute_disk.shared.id
-    device_name = "recipes-shared"
+    device_name = "mae-storm-eats-shared"
   }
 
   network_interface {
@@ -72,10 +72,10 @@ resource "google_compute_instance" "production" {
   }
 
   metadata = {
-    enable-oslogin        = "TRUE"
-    ssh-keys              = "${var.ssh_user}:${var.ssh_public_key}"
-    recipes-bootstrap-ref = var.bootstrap_ref
-    startup-script        = file("${path.module}/startup.sh")
+    enable-oslogin               = "TRUE"
+    ssh-keys                     = "${var.ssh_user}:${var.ssh_public_key}"
+    mae-storm-eats-bootstrap-ref = var.bootstrap_ref
+    startup-script               = file("${path.module}/startup.sh")
   }
 
   lifecycle {
@@ -91,7 +91,7 @@ resource "google_compute_firewall" "web" {
     ports    = ["80", "443"]
   }
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["recipes-web"]
+  target_tags   = ["mae-storm-eats-web"]
 }
 
 resource "cloudflare_dns_record" "production" {
@@ -104,14 +104,14 @@ resource "cloudflare_dns_record" "production" {
 }
 
 resource "google_secret_manager_secret" "production" {
-  secret_id = "recipes-production"
+  secret_id = "mae-storm-eats-production"
   replication {
     auto {}
   }
 }
 
 resource "google_storage_bucket" "backups" {
-  name                        = "${var.project_id}-recipes-backups"
+  name                        = "${var.project_id}-mae-storm-eats-backups"
   location                    = var.region
   uniform_bucket_level_access = true
   force_destroy               = false
@@ -129,7 +129,7 @@ resource "google_storage_bucket_iam_member" "host_backups" {
 }
 
 resource "google_monitoring_uptime_check_config" "https" {
-  display_name = "Recipes HTTPS"
+  display_name = "Mae Storm Eats HTTPS"
   timeout      = "10s"
   period       = "60s"
   http_check {
@@ -148,13 +148,13 @@ resource "google_monitoring_uptime_check_config" "https" {
 }
 
 resource "google_monitoring_notification_channel" "operator" {
-  display_name = "Recipes operator"
+  display_name = "Mae Storm Eats operator"
   type         = "email"
   labels       = { email_address = var.operator_email }
 }
 
 resource "google_monitoring_alert_policy" "uptime" {
-  display_name = "Recipes HTTPS unavailable"
+  display_name = "Mae Storm Eats HTTPS unavailable"
   combiner     = "OR"
   conditions {
     display_name = "Uptime failed"
@@ -173,7 +173,7 @@ resource "google_monitoring_alert_policy" "uptime" {
 }
 
 resource "google_monitoring_alert_policy" "disk" {
-  display_name = "Recipes disk above 85 percent"
+  display_name = "Mae Storm Eats disk above 85 percent"
   combiner     = "OR"
   conditions {
     display_name = "Disk utilization"
@@ -192,12 +192,12 @@ resource "google_monitoring_alert_policy" "disk" {
 }
 
 resource "google_monitoring_alert_policy" "backup" {
-  display_name = "Recipes backup missing"
+  display_name = "Mae Storm Eats backup missing"
   combiner     = "OR"
   conditions {
     display_name = "No successful backup in 30 hours"
     condition_absent {
-      filter   = "metric.type=\"logging.googleapis.com/user/recipes_backup_success\" AND resource.type=\"global\""
+      filter   = "metric.type=\"logging.googleapis.com/user/mae_storm_eats_backup_success\" AND resource.type=\"global\""
       duration = "108000s"
     }
   }
@@ -205,8 +205,8 @@ resource "google_monitoring_alert_policy" "backup" {
 }
 
 resource "google_logging_metric" "backup_success" {
-  name   = "recipes_backup_success"
-  filter = "logName=\"projects/${var.project_id}/logs/recipes-backup\" AND severity=\"INFO\" AND resource.type=\"global\""
+  name   = "mae_storm_eats_backup_success"
+  filter = "logName=\"projects/${var.project_id}/logs/mae-storm-eats-backup\" AND severity=\"INFO\" AND resource.type=\"global\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"

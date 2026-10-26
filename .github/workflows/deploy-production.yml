@@ -31,10 +31,10 @@ jobs:
           set -euo pipefail
           version="${{ inputs.version }}"
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          gh release view "v${version}" --repo drewnorman/mae-storm-recipes >/dev/null
-          digest="$(docker buildx imagetools inspect "ghcr.io/drewnorman/mae-storm-recipes:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          gh release view "v${version}" --repo drewnorman/mae-storm-eats >/dev/null
+          digest="$(docker buildx imagetools inspect "ghcr.io/drewnorman/mae-storm-eats:${version}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
           [[ "${digest}" == sha256:* ]]
-          echo "Deploying ghcr.io/drewnorman/mae-storm-recipes@${digest}"
+          echo "Deploying ghcr.io/drewnorman/mae-storm-eats@${digest}"
           echo "digest=${digest}" >>"${GITHUB_OUTPUT}"
 
   deploy:
@@ -57,4 +57,4 @@ jobs:
           GCE_INSTANCE: ${{ vars.GCE_INSTANCE }}
         run: |
           gcloud compute ssh "${GCE_INSTANCE}" --zone "${GCE_ZONE}" --command \
-            "sudo /opt/recipes/bin/deploy '${VERSION}' 'ghcr.io/drewnorman/mae-storm-recipes@${IMAGE_DIGEST}' '${GITHUB_SHA}'"
+            "sudo /opt/mae-storm-eats/bin/deploy '${VERSION}' 'ghcr.io/drewnorman/mae-storm-eats@${IMAGE_DIGEST}' '${GITHUB_SHA}'"

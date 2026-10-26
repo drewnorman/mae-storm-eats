@@ -1,0 +1,19 @@
+[Unit]
+Description=Mae Storm Eats HTTPS reverse proxy
+After=mae-storm-eats.service
+Requires=mae-storm-eats.service
+RequiresMountsFor=/var/lib/shared
+ConditionPathExists=/var/lib/shared/releases/launch-enabled
+
+[Container]
+ContainerName=mae-storm-eats-proxy
+Image=docker.io/library/caddy:2.10.2-alpine@sha256:87aa104ed6c658991e1b0672be271206b7cd9fec452d1bf3ed9ad6f8ab7a2348
+Network=host
+Volume=/var/lib/shared/runtime/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=/var/lib/shared/caddy-data:/data:Z
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

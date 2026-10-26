@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Mae Storm Pinterest Recipe Importer",
+  "name": "Mae Storm Eats Pinterest Importer",
   "version": "0.1.0",
   "description": "Imports the signed-in owner's Pinterest board recipes and reviews into a configured WordPress site.",
   "icons": {
@@ -11,7 +11,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "pinterest-importer@recipes.maestorm.com",
+      "id": "mae-storm-eats-importer@eats.maestorm.com",
       "strict_min_version": "128.0"
     }
   },

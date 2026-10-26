@@ -22,13 +22,13 @@ if ! dpkg-query -W -f='${Status}' google-cloud-ops-agent 2>/dev/null | grep -Fq 
 fi
 
 bootstrap_ref="$(curl -fsS -H 'Metadata-Flavor: Google' \
-  http://metadata.google.internal/computeMetadata/v1/instance/attributes/recipes-bootstrap-ref)"
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/mae-storm-eats-bootstrap-ref)"
 if [[ ! "${bootstrap_ref}" =~ ^[0-9a-f]{40}$ ]]; then
-  echo 'GCE recipes-bootstrap-ref must be an approved 40-character commit SHA.' >&2
+  echo 'GCE mae-storm-eats-bootstrap-ref must be an approved 40-character commit SHA.' >&2
   exit 1
 fi
 
-device=/dev/disk/by-id/google-recipes-shared
+device=/dev/disk/by-id/google-mae-storm-eats-shared
 shared_root=/var/lib/shared
 mkdir -p "${shared_root}"
 if ! blkid "${device}" >/dev/null 2>&1; then
@@ -42,32 +42,33 @@ mountpoint -q "${shared_root}" || mount "${shared_root}"
 mkdir -p "${shared_root}"/{database,uploads,runtime,backup-staging,releases,caddy-data}
 chmod 0700 "${shared_root}/runtime" "${shared_root}/backup-staging"
 
-if [ ! -d /opt/recipes/source/.git ]; then
-  git clone --no-checkout https://github.com/drewnorman/mae-storm-recipes.git /opt/recipes/source
+if [ ! -d /opt/mae-storm-eats/source/.git ]; then
+  git clone --no-checkout https://github.com/drewnorman/mae-storm-eats.git /opt/mae-storm-eats/source
 fi
-git -C /opt/recipes/source fetch --tags origin
-if ! git -C /opt/recipes/source cat-file -e "${bootstrap_ref}^{commit}"; then
-  echo "Approved recipes-bootstrap-ref ${bootstrap_ref} is unavailable from the source repository." >&2
+git -C /opt/mae-storm-eats/source remote set-url origin https://github.com/drewnorman/mae-storm-eats.git
+git -C /opt/mae-storm-eats/source fetch --tags origin
+if ! git -C /opt/mae-storm-eats/source cat-file -e "${bootstrap_ref}^{commit}"; then
+  echo "Approved mae-storm-eats-bootstrap-ref ${bootstrap_ref} is unavailable from the source repository." >&2
   exit 1
 fi
-git -C /opt/recipes/source checkout --detach --force "${bootstrap_ref}"
+git -C /opt/mae-storm-eats/source checkout --detach --force "${bootstrap_ref}"
 
-install -d /opt/recipes/bin /etc/containers/systemd /etc/systemd/system /etc/systemd/journald.conf.d
-install -m 0755 /opt/recipes/source/scripts/production/*.sh /opt/recipes/bin/
-for script in /opt/recipes/bin/*.sh; do mv "${script}" "${script%.sh}"; done
-for unit in /opt/recipes/source/deploy/quadlet/*; do
+install -d /opt/mae-storm-eats/bin /etc/containers/systemd /etc/systemd/system /etc/systemd/journald.conf.d
+install -m 0755 /opt/mae-storm-eats/source/scripts/production/*.sh /opt/mae-storm-eats/bin/
+for script in /opt/mae-storm-eats/bin/*.sh; do mv "${script}" "${script%.sh}"; done
+for unit in /opt/mae-storm-eats/source/deploy/quadlet/*; do
   destination="/etc/containers/systemd/${unit##*/}"
-  if [[ "${destination}" == /etc/containers/systemd/recipes.container && -f "${destination}" ]]; then
+  if [[ "${destination}" == /etc/containers/systemd/mae-storm-eats.container && -f "${destination}" ]]; then
     # deploy updates this Image to an approved digest; preserve it across boots.
     continue
   fi
   install -m 0644 "${unit}" "${destination}"
 done
-install -m 0644 /opt/recipes/source/deploy/systemd/*.service /opt/recipes/source/deploy/systemd/*.timer /etc/systemd/system/
-install -m 0644 /opt/recipes/source/deploy/systemd/journald-recipes.conf /etc/systemd/journald.conf.d/recipes.conf
-install -m 0600 /opt/recipes/source/config/production/Caddyfile "${shared_root}/runtime/Caddyfile"
+install -m 0644 /opt/mae-storm-eats/source/deploy/systemd/*.service /opt/mae-storm-eats/source/deploy/systemd/*.timer /etc/systemd/system/
+install -m 0644 /opt/mae-storm-eats/source/deploy/systemd/journald-mae-storm-eats.conf /etc/systemd/journald.conf.d/mae-storm-eats.conf
+install -m 0600 /opt/mae-storm-eats/source/config/production/Caddyfile "${shared_root}/runtime/Caddyfile"
 systemctl daemon-reload
-for unit in recipes-db.service recipes.service recipes-proxy.service; do
+for unit in mae-storm-eats-db.service mae-storm-eats.service mae-storm-eats-proxy.service; do
   systemctl cat "${unit}" >/dev/null || {
     echo "Podman Quadlet did not generate ${unit}; check the installed Podman version and unit syntax." >&2
     exit 1

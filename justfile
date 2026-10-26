@@ -1,8 +1,8 @@
 set dotenv-load := true
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-export XDG_CACHE_HOME := env_var_or_default("RECIPES_CACHE_HOME", "/tmp/recipes-cache")
-export COREPACK_HOME := env_var_or_default("RECIPES_COREPACK_HOME", "/tmp/recipes-corepack")
+export XDG_CACHE_HOME := env_var_or_default("MAE_STORM_EATS_CACHE_HOME", "/tmp/mae-storm-eats-cache")
+export COREPACK_HOME := env_var_or_default("MAE_STORM_EATS_COREPACK_HOME", "/tmp/mae-storm-eats-corepack")
 
 default:
   just --list

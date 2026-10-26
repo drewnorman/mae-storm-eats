@@ -4,15 +4,15 @@ set -euo pipefail
 version="${1:?release version is required}"
 image="${2:?immutable image digest is required}"
 infra_sha="${3:?infra SHA is required}"
-shared_root="${RECIPES_SHARED_ROOT:-/var/lib/shared}"
-quadlet="${RECIPES_QUADLET_PATH:-/etc/containers/systemd/recipes.container}"
-bin_dir="${RECIPES_BIN_DIR:-/opt/recipes/bin}"
+shared_root="${MAE_STORM_EATS_SHARED_ROOT:-/var/lib/shared}"
+quadlet="${MAE_STORM_EATS_QUADLET_PATH:-/etc/containers/systemd/mae-storm-eats.container}"
+bin_dir="${MAE_STORM_EATS_BIN_DIR:-/opt/mae-storm-eats/bin}"
 metadata="${shared_root}/releases/deployed.env"
 previous="${shared_root}/releases/previous.env"
 launch_marker="${shared_root}/releases/launch-enabled"
 
 [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-[[ "${image}" =~ ^ghcr\.io/drewnorman/mae-storm-recipes@sha256:[0-9a-f]{64}$ ]]
+[[ "${image}" =~ ^ghcr\.io/drewnorman/mae-storm-eats@sha256:[0-9a-f]{64}$ ]]
 
 mkdir -p "${shared_root}/releases"
 first_deploy=0
@@ -21,22 +21,22 @@ cleanup_first_deploy() {
     status=$?
     if [[ "${status}" -ne 0 && "${first_deploy}" -eq 1 ]]; then
         rm -f -- "${launch_marker}"
-        systemctl stop recipes-proxy.service recipes.service recipes-db.service >/dev/null 2>&1 || true
+        systemctl stop mae-storm-eats-proxy.service mae-storm-eats.service mae-storm-eats-db.service >/dev/null 2>&1 || true
     fi
 }
 trap cleanup_first_deploy EXIT
 
-systemctl start recipes-secrets.service
+systemctl start mae-storm-eats-secrets.service
 set -a
 source "${shared_root}/runtime/wordpress.env"
 set +a
 # Quadlet services remain dormant until an approved deploy begins.
 touch "${launch_marker}"
-systemctl start recipes-db.service
+systemctl start mae-storm-eats-db.service
 
 # systemd considers the database unit started before MariaDB finishes booting.
 for attempt in {1..45}; do
-    if podman exec recipes-db mariadb-admin ping --silent >/dev/null 2>&1; then
+    if podman exec mae-storm-eats-db mariadb-admin ping --silent >/dev/null 2>&1; then
         break
     fi
     if [[ "${attempt}" -eq 45 ]]; then
@@ -64,10 +64,10 @@ rollback() {
         sed -i "s|^Image=.*|Image=${old_image}|" "${quadlet}"
         systemctl daemon-reload
         if [[ "${first_deploy}" -eq 1 ]]; then
-            systemctl stop recipes-proxy.service recipes.service || true
+            systemctl stop mae-storm-eats-proxy.service mae-storm-eats.service || true
         else
-            systemctl restart recipes.service || true
-            systemctl restart recipes-proxy.service || true
+            systemctl restart mae-storm-eats.service || true
+            systemctl restart mae-storm-eats-proxy.service || true
         fi
     fi
     echo "Deployment failed; app image configuration restored. Database restore may be required if an irreversible migration ran." >&2
@@ -78,9 +78,9 @@ trap rollback ERR
 quadlet_changed=1
 sed -i "s|^Image=.*|Image=${image}|" "${quadlet}"
 systemctl daemon-reload
-systemctl restart recipes.service
-systemctl restart recipes-proxy.service
-podman exec recipes /usr/local/bin/recipes-initialize
+systemctl restart mae-storm-eats.service
+systemctl restart mae-storm-eats-proxy.service
+podman exec mae-storm-eats /usr/local/bin/mae-storm-eats-initialize
 "${bin_dir}/smoke"
 
 app_sha="$(podman image inspect "${image}" --format '{{ index .Labels "org.opencontainers.image.revision" }}')"
@@ -96,5 +96,5 @@ if [[ "${first_deploy}" -eq 1 ]]; then
     # The first backup must contain a real database and deployed.env metadata.
     "${bin_dir}/backup"
 fi
-systemctl enable --now recipes-backup.timer
+systemctl enable --now mae-storm-eats-backup.timer
 echo "Deployed ${version} at ${image}."

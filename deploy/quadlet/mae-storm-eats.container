@@ -1,0 +1,24 @@
+[Unit]
+Description=Mae Storm Eats WordPress
+After=mae-storm-eats-db.service
+Requires=mae-storm-eats-db.service
+RequiresMountsFor=/var/lib/shared
+ConditionPathExists=/var/lib/shared/releases/launch-enabled
+
+[Container]
+ContainerName=mae-storm-eats
+Image=ghcr.io/drewnorman/mae-storm-eats:0.1.0
+Network=mae-storm-eats.network
+EnvironmentFile=/var/lib/shared/runtime/wordpress.env
+Volume=/var/lib/shared/uploads:/var/www/html/wp-content/uploads:Z
+Volume=/var/lib/shared/runtime:/run/secrets:ro,Z
+PublishPort=127.0.0.1:8080:80
+HealthCmd=curl -fsS http://127.0.0.1/wp-login.php
+HealthInterval=30s
+HealthRetries=5
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

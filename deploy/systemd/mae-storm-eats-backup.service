@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up Mae Storm Eats database, uploads, config, and release metadata
+After=mae-storm-eats-db.service
+RequiresMountsFor=/var/lib/shared
+
+[Service]
+Type=oneshot
+EnvironmentFile=/var/lib/shared/runtime/wordpress.env
+ExecStart=/opt/mae-storm-eats/bin/backup

@@ -25,7 +25,7 @@ variable "zone" {
 
 variable "domain" {
   type    = string
-  default = "recipes.maestorm.com"
+  default = "eats.maestorm.com"
 }
 
 variable "cloudflare_zone_id" {
@@ -44,7 +44,7 @@ variable "operator_email" {
 
 variable "ssh_user" {
   type    = string
-  default = "recipes"
+  default = "maestormeats"
 }
 
 variable "ssh_public_key" {
