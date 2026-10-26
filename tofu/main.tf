@@ -13,6 +13,18 @@ resource "google_project_iam_member" "host_secret_access" {
   member  = "serviceAccount:${google_service_account.host.email}"
 }
 
+resource "google_project_iam_member" "host_logs_write" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.host.email}"
+}
+
+resource "google_project_iam_member" "host_metrics_write" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.host.email}"
+}
+
 resource "google_compute_address" "production" {
   name   = "${local.name}-production"
   region = var.region
@@ -37,7 +49,7 @@ resource "google_compute_instance" "production" {
 
   boot_disk {
     initialize_params {
-      image = "projects/debian-cloud/global/images/family/debian-12"
+      image = "projects/debian-cloud/global/images/family/debian-13"
       size  = 20
     }
   }
@@ -60,9 +72,10 @@ resource "google_compute_instance" "production" {
   }
 
   metadata = {
-    enable-oslogin = "TRUE"
-    ssh-keys       = "${var.ssh_user}:${var.ssh_public_key}"
-    startup-script = file("${path.module}/startup.sh")
+    enable-oslogin        = "TRUE"
+    ssh-keys              = "${var.ssh_user}:${var.ssh_public_key}"
+    recipes-bootstrap-ref = var.bootstrap_ref
+    startup-script        = file("${path.module}/startup.sh")
   }
 
   lifecycle {
@@ -184,7 +197,7 @@ resource "google_monitoring_alert_policy" "backup" {
   conditions {
     display_name = "No successful backup in 30 hours"
     condition_absent {
-      filter   = "metric.type=\"logging.googleapis.com/user/recipes_backup_success\" AND resource.type=\"gce_instance\""
+      filter   = "metric.type=\"logging.googleapis.com/user/recipes_backup_success\" AND resource.type=\"global\""
       duration = "108000s"
     }
   }
@@ -193,7 +206,7 @@ resource "google_monitoring_alert_policy" "backup" {
 
 resource "google_logging_metric" "backup_success" {
   name   = "recipes_backup_success"
-  filter = "logName=\"projects/${var.project_id}/logs/recipes-backup\" AND severity=\"INFO\""
+  filter = "logName=\"projects/${var.project_id}/logs/recipes-backup\" AND severity=\"INFO\" AND resource.type=\"global\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"

@@ -37,6 +37,8 @@ coverage/
 .terraform/
 *.tfstate
 *.tfstate.*
+tofu/*.tfvars
+tofu/*.tfvars.json
 
 # Logs
 *.log

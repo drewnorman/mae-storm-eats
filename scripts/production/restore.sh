@@ -17,8 +17,8 @@ for required in database.sql uploads runtime deployed.env; do
 done
 test -s "${stage}/database.sql"
 
-if ! mariadb --host="${WORDPRESS_DB_HOST%%:*}" --user="${WORDPRESS_DB_USER:?}" \
-    --password="${WORDPRESS_DB_PASSWORD:?}" <"${stage}/database.sql"; then
+if ! podman exec -i "${RECIPES_DB_CONTAINER:-recipes-db}" mariadb --user=root \
+    --password="${MARIADB_ROOT_PASSWORD:?MARIADB_ROOT_PASSWORD is required}" <"${stage}/database.sql"; then
     echo "Database restore failed; persistent files were not changed." >&2
     exit 1
 fi

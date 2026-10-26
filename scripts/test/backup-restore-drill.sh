@@ -7,33 +7,80 @@ trap 'rm -rf -- "${temporary}"' EXIT
 source_tree="${temporary}/source"
 restore_tree="${temporary}/restored"
 bin_dir="${temporary}/bin"
-mkdir -p "${source_tree}"/{uploads,runtime} "${bin_dir}"
-printf 'CREATE DATABASE wordpress;\n' >"${source_tree}/database.sql"
+archive="${temporary}/uploaded.tar.gz"
+mkdir -p "${source_tree}"/{uploads,runtime,releases,backup-staging} "${bin_dir}"
+printf 'CREATE DATABASE wordpress;\n' >"${temporary}/database.sql"
 printf 'image bytes\n' >"${source_tree}/uploads/recipe.jpg"
 printf 'WORDPRESS_DB_NAME=wordpress\n' >"${source_tree}/runtime/wordpress.env"
-printf 'VERSION=0.1.0\nIMAGE=example@sha256:test\n' >"${source_tree}/deployed.env"
-tar -C "${source_tree}" -czf "${temporary}/backup.tar.gz" .
+printf 'VERSION=0.1.0\nIMAGE=example@sha256:test\n' >"${source_tree}/releases/deployed.env"
 
-printf '%s\n' '#!/usr/bin/env bash' 'cat >"${RECIPES_TEST_DB_OUTPUT:?}"' >"${bin_dir}/mariadb"
-chmod +x "${bin_dir}/mariadb"
+cat >"${bin_dir}/podman" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == exec ]] || exit 2
+shift
+if [[ "${1:-}" == -i ]]; then
+    shift
+    [[ "${1:-}" == recipes-db && "${2:-}" == mariadb ]] || exit 2
+    [[ "${RECIPES_TEST_DB_FAIL:-0}" != 1 ]] || exit 1
+    cat >"${RECIPES_TEST_DB_OUTPUT:?}"
+else
+    [[ "${1:-}" == recipes-db && "${2:-}" == mariadb-dump ]] || exit 2
+    cat "${RECIPES_TEST_DB_INPUT:?}"
+fi
+STUB
+cat >"${bin_dir}/gcloud" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == storage && "${2:-}" == cp ]]; then
+    cp "$3" "${RECIPES_TEST_UPLOADED_ARCHIVE:?}"
+elif [[ "${1:-}" == logging && "${2:-}" == write ]]; then
+    [[ " $* " == *' --monitored-resource-type=global '* ]] || exit 2
+    touch "${RECIPES_TEST_LOG_OUTPUT:?}"
+else
+    exit 2
+fi
+STUB
+chmod +x "${bin_dir}/podman" "${bin_dir}/gcloud"
+
+PATH="${bin_dir}:${PATH}" \
+RECIPES_SHARED_ROOT="${source_tree}" RECIPES_BACKUP_BUCKET=recipes-test \
+WORDPRESS_DB_NAME=wordpress WORDPRESS_DB_USER=wordpress WORDPRESS_DB_PASSWORD=test \
+RECIPES_TEST_DB_INPUT="${temporary}/database.sql" \
+RECIPES_TEST_UPLOADED_ARCHIVE="${archive}" \
+RECIPES_TEST_LOG_OUTPUT="${temporary}/logged" \
+    "${repo_root}/scripts/production/backup.sh"
+test -s "${archive}"
+test -f "${temporary}/logged"
+test -z "$(find "${source_tree}/backup-staging" -mindepth 1 -print -quit)"
 
 PATH="${bin_dir}:${PATH}" \
 RECIPES_TEST_DB_OUTPUT="${temporary}/restored.sql" \
-RECIPES_CONFIRM_RESTORE=YES \
-WORDPRESS_DB_HOST=db:3306 WORDPRESS_DB_USER=wordpress WORDPRESS_DB_PASSWORD=test \
-    "${repo_root}/scripts/production/restore.sh" "${temporary}/backup.tar.gz" "${restore_tree}"
+RECIPES_CONFIRM_RESTORE=YES MARIADB_ROOT_PASSWORD=test \
+    "${repo_root}/scripts/production/restore.sh" "${archive}" "${restore_tree}"
 
-cmp "${source_tree}/database.sql" "${temporary}/restored.sql"
+cmp "${temporary}/database.sql" "${temporary}/restored.sql"
 cmp "${source_tree}/uploads/recipe.jpg" "${restore_tree}/uploads/recipe.jpg"
 cmp "${source_tree}/runtime/wordpress.env" "${restore_tree}/runtime/wordpress.env"
-cmp "${source_tree}/deployed.env" "${restore_tree}/releases/deployed.env"
+cmp "${source_tree}/releases/deployed.env" "${restore_tree}/releases/deployed.env"
 
-rm "${source_tree}/database.sql"
-tar -C "${source_tree}" -czf "${temporary}/invalid.tar.gz" .
+printf 'original image\n' >"${restore_tree}/uploads/recipe.jpg"
+if PATH="${bin_dir}:${PATH}" RECIPES_TEST_DB_FAIL=1 \
+    RECIPES_CONFIRM_RESTORE=YES MARIADB_ROOT_PASSWORD=test \
+    "${repo_root}/scripts/production/restore.sh" "${archive}" "${restore_tree}" >/dev/null 2>&1; then
+    echo "Restore replaced files after the database restore failed." >&2
+    exit 1
+fi
+test "$(cat "${restore_tree}/uploads/recipe.jpg")" = 'original image'
+
+mkdir -p "${temporary}/invalid"
+tar -xzf "${archive}" -C "${temporary}/invalid"
+rm "${temporary}/invalid/database.sql"
+tar -C "${temporary}/invalid" -czf "${temporary}/invalid.tar.gz" .
 if RECIPES_CONFIRM_RESTORE=YES "${repo_root}/scripts/production/restore.sh" \
     "${temporary}/invalid.tar.gz" "${restore_tree}" >/dev/null 2>&1; then
     echo "Restore accepted a backup without a database dump." >&2
     exit 1
 fi
 
-echo "Disposable database, uploads, config, and release restore drill passed."
+echo "Disposable backup, upload, logging, and restore drill passed."

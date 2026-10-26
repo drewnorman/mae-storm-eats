@@ -2,18 +2,28 @@
 
 ## First launch
 
-1. Review `tofu plan`, then apply it to create the host, static IP, protected
-   disk, DNS, secret, backup bucket, uptime check, and alerts.
-2. Add the production `KEY=VALUE` bundle as a Secret Manager version. Never put
+There is no staging environment. Run the repository checks and local container
+drills, then launch directly to production during Angela's acceptance window.
+
+1. Publish the approved release and verify its bundle, checksums, and GHCR image
+   digest. Record the release tag's full commit SHA as `bootstrap_ref` in the
+   untracked `production.tfvars`. The production host must be able to clone the
+   source repository at that commit.
+2. Review `tofu plan -var-file=production.tfvars`, then apply it to create the
+   host, static IP, protected disk, DNS, secret, backup bucket, uptime check,
+   and alerts. The startup script installs host operations files at exactly
+   `bootstrap_ref`; the Quadlet containers remain dormant until deployment.
+3. Add the production `KEY=VALUE` bundle as a Secret Manager version. Never put
    it in OpenTofu variables, GitHub artifacts, shell tracing, or Git.
-3. Install `deploy/quadlet`, `deploy/systemd`, production scripts, and the
-   Caddyfile on the host. Enable `recipes-backup.timer` and the container units.
 4. Configure the GitHub `production` environment with required reviewers and
    set its GCE instance/zone variables and workload-identity secrets.
-5. Publish `v0.1.0`, dispatch **Deploy Production** with `0.1.0`, and approve the
-   displayed immutable digest.
+5. Dispatch **Deploy Production** with the approved version and approve the
+   displayed immutable digest. The first deployment initializes the empty
+   database, checks the site, records release metadata, and takes its first
+   backup. The backup timer starts only after this succeeds.
 6. Confirm HTTPS, `/wp-login.php`, protected frontend/REST responses, active
-   plugin/theme, Timber, and recorded release metadata.
+   plugin/theme, Timber, release metadata, the first backup in GCS, and the
+   uptime and backup alerts.
 
 Production begins empty. Schedule Angela's acceptance window with a content
 freeze. She validates login, archive/search, a recipe, print output, and one
@@ -58,23 +68,37 @@ and WordPress credentials together.
 
 ## Deploy and rollback
 
-The deployment workflow verifies the GitHub Release, resolves its immutable
-GHCR digest, takes a pre-deploy backup, updates only the app container, runs
-initialization/upgrades, and smoke-tests production. It records app/infra SHAs,
-version, digest, and timestamp in `/var/lib/shared/releases/deployed.env`.
+The deployment workflow verifies the GitHub Release and resolves its immutable
+GHCR digest. Upgrades take a pre-deploy backup before changing the app image;
+the initial installation takes its first backup after initialization and smoke
+checks. It records app/infra SHAs, version, digest, and timestamp in
+`/var/lib/shared/releases/deployed.env`.
 
-Failed smoke tests restore the prior image automatically. If an irreversible
-database migration ran, stop writes and restore the pre-deploy GCS backup with
-the restore procedure before restarting the prior image. Routine releases do
-not rebuild or replace the VM.
+Failed upgrade smoke tests restore the prior image automatically. A failed first
+deployment has no prior image to restore and leaves its Quadlet units dormant
+on reboot. If an irreversible database migration ran, stop writes and restore
+the pre-deploy GCS backup with the restore procedure before restarting the prior
+image. Routine releases do not rebuild or replace the VM.
 
 ## Disaster recovery and launch gate
 
-Download a versioned GCS archive onto a disposable instance, restore it into an
-empty shared disk, install the recorded image digest and units, then run the
-initializer and smoke tests. Check recipe images and one private recipe. Record
-the drill date, archive object generation, digest, and result outside the host.
+The local backup/restore drill uses disposable containers and synthetic data.
+For a real disaster recovery, download a versioned GCS archive, stop writes,
+start the database container, and source the root-only runtime bundle before
+running restore:
 
-Launch is complete only after a real production backup is present in GCS, one
-disposable restore succeeds, an image rollback succeeds, alerts are verified,
-and Angela completes acceptance with the matching release extension.
+```sh
+set -a
+source /var/lib/shared/runtime/wordpress.env
+set +a
+RECIPES_CONFIRM_RESTORE=YES /opt/recipes/bin/restore /path/to/archive.tar.gz /var/lib/shared
+```
+
+The restore replaces the database, uploads, runtime configuration, and release
+metadata; do not run it against a healthy production site as a launch test.
+After a real recovery, restore the recorded image digest and units, then run
+the initializer and smoke tests. Check recipe images and one private recipe.
+
+Launch is complete only after a real production backup is present in GCS, the
+local restore and image rollback drills pass, alerts are verified, and Angela
+completes acceptance with the matching release extension.

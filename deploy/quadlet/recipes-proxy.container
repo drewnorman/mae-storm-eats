@@ -2,6 +2,8 @@
 Description=Recipes HTTPS reverse proxy
 After=recipes.service
 Requires=recipes.service
+RequiresMountsFor=/var/lib/shared
+ConditionPathExists=/var/lib/shared/releases/launch-enabled
 
 [Container]
 ContainerName=recipes-proxy

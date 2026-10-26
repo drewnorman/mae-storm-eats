@@ -21,6 +21,7 @@ cp -a "${shared_root}/runtime" "${stage}/runtime"
 cp "${release_file}" "${stage}/deployed.env"
 tar --sort=name --mtime="@0" --owner=0 --group=0 --numeric-owner -C "${stage}" -czf "${archive}" .
 gcloud storage cp "${archive}" "gs://${bucket}/production/${timestamp}/"
-gcloud logging write recipes-backup "backup completed ${timestamp}" --severity=INFO
+gcloud logging write recipes-backup "backup completed ${timestamp}" \
+    --severity=INFO --monitored-resource-type=global
 rm -f -- "${archive}"
 echo "Uploaded production backup ${timestamp}."

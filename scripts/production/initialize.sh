@@ -27,15 +27,18 @@ fi
 "${wp[@]}" plugin activate mae-storm-recipes
 "${wp[@]}" theme activate mae-storm-recipes
 
+"${wp[@]}" eval 'if (!get_role("recipe_importer")) { fwrite(STDERR, "Recipe Importer role unavailable\n"); exit(1); }'
+
 if ! "${wp[@]}" user get pinterest-importer --field=ID >/dev/null 2>&1; then
     generated_password="$(openssl rand -base64 36)"
     "${wp[@]}" user create pinterest-importer "${importer_email}" \
-        --role=author --user_pass="${generated_password}" --porcelain >/dev/null
+        --role=recipe_importer --user_pass="${generated_password}" --porcelain >/dev/null
 fi
+"${wp[@]}" user set-role pinterest-importer recipe_importer
 
-"${wp[@]}" eval 'if (!class_exists("Timber\\Timber")) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
+"${wp[@]}" eval 'if (!class_exists(\Timber\Timber::class)) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
 "${wp[@]}" plugin is-active mae-storm-recipes
 "${wp[@]}" theme is-active mae-storm-recipes
-"${wp[@]}" user get pinterest-importer --field=ID >/dev/null
+"${wp[@]}" eval '$user = get_user_by("login", "pinterest-importer"); if (!$user || $user->roles !== ["recipe_importer"] || !user_can($user, "mae_storm_import_recipes") || user_can($user, "publish_posts")) { fwrite(STDERR, "Pinterest importer privileges are incorrect\n"); exit(1); }'
 
 echo "WordPress initialization verified for ${site_url}."

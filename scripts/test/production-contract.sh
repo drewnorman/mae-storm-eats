@@ -20,4 +20,6 @@ mode="$(stat -c '%a' scripts/production/hydrate-secrets.sh)"
 test "${mode}" = 755
 
 scripts/test/backup-restore-drill.sh
+scripts/test/host-boot-contract.sh
+scripts/test/production-deploy.sh
 echo "Production release and runtime contract checks passed."

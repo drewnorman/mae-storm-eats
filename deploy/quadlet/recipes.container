@@ -2,12 +2,14 @@
 Description=Mae Storm Recipes WordPress
 After=recipes-db.service
 Requires=recipes-db.service
+RequiresMountsFor=/var/lib/shared
+ConditionPathExists=/var/lib/shared/releases/launch-enabled
 
 [Container]
 ContainerName=recipes
 Image=ghcr.io/drewnorman/mae-storm-recipes:0.1.0
 Network=recipes.network
-EnvironmentFile=/run/recipes/wordpress.env
+EnvironmentFile=/var/lib/shared/runtime/wordpress.env
 Volume=/var/lib/shared/uploads:/var/www/html/wp-content/uploads:Z
 Volume=/var/lib/shared/runtime:/run/secrets:ro,Z
 PublishPort=127.0.0.1:8080:80

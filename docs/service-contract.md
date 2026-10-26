@@ -49,8 +49,10 @@ fails or is empty. Its versioned GCS archive includes the database, uploads,
 runtime configuration, app version, app/infra SHAs, and image digest. Bucket
 versioning is enabled with a 90-day retention rule.
 
-A restore must use a disposable host first. Run
-`RECIPES_CONFIRM_RESTORE=YES /opt/recipes/bin/restore <archive> <shared-root>`,
-start the stack, and run the smoke test. Production restore is an explicit
-disaster-recovery action because it replaces the database, uploads, config, and
-release metadata.
+Local disposable containers exercise backup and restore with synthetic data;
+there is no hosted staging environment. A real production restore requires the
+database container running and the root-only runtime secret bundle sourced on
+the host. Run `RECIPES_CONFIRM_RESTORE=YES /opt/recipes/bin/restore <archive>
+<shared-root>` only during disaster recovery: it replaces the database,
+uploads, config, and release metadata. Start the app and run smoke checks after
+restoring the recorded image digest.
