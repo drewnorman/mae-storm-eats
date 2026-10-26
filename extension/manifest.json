@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mae Storm Eats Pinterest Importer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Imports the signed-in owner's Pinterest board recipes and reviews into a configured WordPress site.",
   "icons": {
     "32": "icons/mae-storm-eats.svg",
@@ -23,10 +23,18 @@
     "tabs",
     "tabHide"
   ],
-  "host_permissions": ["https://www.pinterest.com/*", "https://*.pinimg.com/*"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": [
+    "https://www.pinterest.com/*",
+    "https://*.pinimg.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "options_ui": {
     "page": "connection.html",
@@ -43,8 +51,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.pinterest.com/*"],
-      "js": ["collector.js"],
+      "matches": [
+        "https://www.pinterest.com/*"
+      ],
+      "js": [
+        "collector.js"
+      ],
       "run_at": "document_start"
     }
   ]
