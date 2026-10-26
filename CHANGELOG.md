@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.2.3](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.2...v0.2.3) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ops:** wait for WordPress container readiness ([cd4c0d1](https://github.com/drewnorman/mae-storm-eats/commit/cd4c0d176e9959b05ff6375034003f3f53ba9db9))
+
 ## [0.2.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.1...v0.2.2) (2026-10-26)
 
 
