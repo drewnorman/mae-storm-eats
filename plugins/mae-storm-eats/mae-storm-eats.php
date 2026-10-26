@@ -3,7 +3,7 @@
  * Plugin Name: Mae Storm Eats
  * Description: First-party recipe content model, imports, and private access controls for eats.maestorm.com.
  * x-release-please-start-version
- * Version: 0.2.1
+ * Version: 0.2.2
  * x-release-please-end
  * Requires at least: 6.5
  * Requires PHP: 8.3
@@ -27,7 +27,7 @@ define('MAE_STORM_EATS_FILE', __FILE__);
 define('MAE_STORM_EATS_PATH', plugin_dir_path(__FILE__));
 define('MAE_STORM_EATS_URL', plugin_dir_url(__FILE__));
 // x-release-please-start-version
-define('MAE_STORM_EATS_VERSION', '0.2.1');
+define('MAE_STORM_EATS_VERSION', '0.2.2');
 // x-release-please-end
 
 $mae_storm_eats_autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
