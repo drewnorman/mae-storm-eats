@@ -19,6 +19,11 @@ drills, then launch directly to production during the owner's acceptance window.
    `bootstrap_ref`; the Quadlet containers remain dormant until deployment.
 3. Add the production `KEY=VALUE` bundle as a Secret Manager version. Never put
    it in OpenTofu variables, GitHub artifacts, shell tracing, or Git.
+   The bundle is sourced by Bash and read by systemd. Quote literal values with
+   spaces, for example `MAE_STORM_EATS_SITE_TITLE="Mae Storm Eats"`, and do not
+   include shell substitutions. After adding a new version, restart
+   `mae-storm-eats-secrets.service` before retrying a failed deployment; the
+   active oneshot service does not reload on `systemctl start`.
 4. Configure the GitHub `production` environment with required reviewers. Set
    `GCP_PROJECT_ID`, `GCE_INSTANCE`, and `GCE_ZONE` variables from the OpenTofu
    project, instance, and zone. Set `GCP_WORKLOAD_IDENTITY_PROVIDER` and
