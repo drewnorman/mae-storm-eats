@@ -1,2 +1,3 @@
-# Release Please rewrites this JSON file with its own stable formatting.
+# Release Please rewrites these files with its own stable formatting.
 extension/manifest.json
+CHANGELOG.md

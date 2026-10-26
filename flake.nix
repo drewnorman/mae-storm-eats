@@ -44,6 +44,7 @@
               pkgs.podman-compose
               pkgs.just
               pkgs.git
+              pkgs.ripgrep
               pkgs.opentofu
               pkgs.gnutar
               pkgs.gzip

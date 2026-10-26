@@ -6,6 +6,11 @@ presentation_files=(
     themes/mae-storm-eats/templates
 )
 
+command -v rg >/dev/null || {
+    echo "ripgrep is required for the Timber presentation boundary check." >&2
+    exit 1
+}
+
 if rg --pcre2 -n --glob '*.php' '(?<!::)\b(get_post_meta|get_posts|get_terms|get_the_title|get_the_excerpt|wp_get_attachment_image_url)\s*\(|new[[:space:]]+\\WP_Query\b' "${presentation_files[@]}"; then
     echo "Presentation code must retrieve WordPress objects through Timber." >&2
     exit 1
