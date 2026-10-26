@@ -79,6 +79,26 @@ quadlet_changed=1
 sed -i "s|^Image=.*|Image=${image}|" "${quadlet}"
 systemctl daemon-reload
 systemctl restart mae-storm-eats.service
+# The official WordPress entrypoint copies core into the container's empty
+# /var/www/html and writes wp-config.php before starting Apache. systemd
+# reports the container started before that initialization finishes.
+wait_for_wordpress() {
+    local attempt
+    for attempt in {1..60}; do
+        if podman exec mae-storm-eats test -f /var/www/html/wp-load.php >/dev/null 2>&1 \
+            && podman exec mae-storm-eats test -f /var/www/html/wp-config.php >/dev/null 2>&1 \
+            && podman exec mae-storm-eats curl --fail --silent --show-error --max-time 5 \
+                --output /dev/null http://127.0.0.1/wp-login.php >/dev/null 2>&1; then
+            return 0
+        fi
+        if [[ "${attempt}" -eq 60 ]]; then
+            echo "WordPress container did not finish initialization after 60 readiness checks." >&2
+            return 1
+        fi
+        sleep 2
+    done
+}
+wait_for_wordpress
 systemctl restart mae-storm-eats-proxy.service
 podman exec mae-storm-eats /usr/local/bin/mae-storm-eats-initialize
 "${bin_dir}/smoke"
