@@ -1,6 +1,32 @@
 #!/bin/bash
 set -euo pipefail
 
+select_ops_ref() {
+  local initial_ref="$1" metadata="$2"
+  [[ "${initial_ref}" =~ ^[0-9a-f]{40}$ ]] || {
+    echo 'Bootstrap ref must be a 40-character commit SHA.' >&2
+    return 1
+  }
+  if [[ ! -f "${metadata}" ]]; then
+    printf '%s\n' "${initial_ref}"
+    return
+  fi
+
+  local revisions=()
+  mapfile -t revisions < <(sed -n 's/^APP_SHA=//p' "${metadata}")
+  if [[ "${#revisions[@]}" -ne 1 || ! "${revisions[0]}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo 'Deployed release metadata has no valid, unique APP_SHA.' >&2
+    return 1
+  fi
+  printf '%s\n' "${revisions[0]}"
+}
+
+# Allow boot revision selection to be tested without running host setup.
+if [[ "${1:-}" == --select-ops-ref ]]; then
+  select_ops_ref "${2:?bootstrap ref is required}" "${3:?metadata path is required}"
+  exit
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git gnupg mariadb-client podman
@@ -41,6 +67,7 @@ fi
 mountpoint -q "${shared_root}" || mount "${shared_root}"
 mkdir -p "${shared_root}"/{database,uploads,runtime,backup-staging,releases,caddy-data}
 chmod 0700 "${shared_root}/runtime" "${shared_root}/backup-staging"
+ops_ref="$(select_ops_ref "${bootstrap_ref}" "${shared_root}/releases/deployed.env")"
 
 if [ ! -d /opt/mae-storm-eats/source/.git ]; then
   git clone --no-checkout https://github.com/drewnorman/mae-storm-eats.git /opt/mae-storm-eats/source
@@ -48,14 +75,58 @@ fi
 git -C /opt/mae-storm-eats/source remote set-url origin https://github.com/drewnorman/mae-storm-eats.git
 git -C /opt/mae-storm-eats/source fetch --tags origin
 if ! git -C /opt/mae-storm-eats/source cat-file -e "${bootstrap_ref}^{commit}"; then
-  echo "Approved mae-storm-eats-bootstrap-ref ${bootstrap_ref} is unavailable from the source repository." >&2
+  echo "Approved bootstrap revision ${bootstrap_ref} is unavailable from the source repository." >&2
   exit 1
 fi
+if ! git -C /opt/mae-storm-eats/source cat-file -e "${ops_ref}^{commit}"; then
+  echo "Approved operations revision ${ops_ref} is unavailable from the source repository." >&2
+  exit 1
+fi
+# Keep host units and proxy configuration at their separately approved
+# bootstrap revision; only operations scripts follow the deployed app release.
 git -C /opt/mae-storm-eats/source checkout --detach --force "${bootstrap_ref}"
 
-install -d /opt/mae-storm-eats/bin /etc/containers/systemd /etc/systemd/system /etc/systemd/journald.conf.d
-install -m 0755 /opt/mae-storm-eats/source/scripts/production/*.sh /opt/mae-storm-eats/bin/
-for script in /opt/mae-storm-eats/bin/*.sh; do mv "${script}" "${script%.sh}"; done
+install -d /opt/mae-storm-eats/ops /etc/containers/systemd /etc/systemd/system /etc/systemd/journald.conf.d
+stage="$(mktemp -d /opt/mae-storm-eats/ops/.stage.XXXXXXXX)"
+git -C /opt/mae-storm-eats/source archive "${ops_ref}" scripts/production | tar -x -C "${stage}"
+install -d "${stage}/bin"
+for script in "${stage}"/scripts/production/*.sh; do
+  bash -n "${script}"
+  name="${script##*/}"
+  install -m 0755 "${script}" "${stage}/bin/${name%.sh}"
+done
+release_dir="/opt/mae-storm-eats/ops/${ops_ref}"
+if [[ -e "${release_dir}" || -L "${release_dir}" ]]; then
+  [[ -d "${release_dir}" && ! -L "${release_dir}" ]] || {
+    echo "Operations release path is not a directory: ${release_dir}" >&2
+    exit 1
+  }
+  if ! diff -qr "${stage}/bin" "${release_dir}" >/dev/null; then
+    previous="$(mktemp -d /opt/mae-storm-eats/ops/.previous.XXXXXXXX)"
+    rmdir "${previous}"
+    mv "${release_dir}" "${previous}"
+    if ! mv "${stage}/bin" "${release_dir}"; then
+      mv "${previous}" "${release_dir}"
+      exit 1
+    fi
+    rm -rf -- "${previous}"
+  fi
+else
+  mv "${stage}/bin" "${release_dir}"
+fi
+rm -rf -- "${stage}"
+
+link="/opt/mae-storm-eats/ops/.bin-link.$$"
+ln -s "${release_dir}" "${link}"
+if [[ -d /opt/mae-storm-eats/bin && ! -L /opt/mae-storm-eats/bin ]]; then
+  legacy="$(mktemp -d /opt/mae-storm-eats/ops/legacy.XXXXXXXX)"
+  rmdir "${legacy}"
+  mv /opt/mae-storm-eats/bin "${legacy}"
+elif [[ -e /opt/mae-storm-eats/bin && ! -L /opt/mae-storm-eats/bin ]]; then
+  echo 'Installed operations path is not a directory or symlink.' >&2
+  exit 1
+fi
+mv -Tf "${link}" /opt/mae-storm-eats/bin
 for unit in /opt/mae-storm-eats/source/deploy/quadlet/*; do
   destination="/etc/containers/systemd/${unit##*/}"
   if [[ "${destination}" == /etc/containers/systemd/mae-storm-eats.container && -f "${destination}" ]]; then

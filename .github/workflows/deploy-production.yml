@@ -43,6 +43,8 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -57,5 +59,10 @@ jobs:
           GCE_INSTANCE: ${{ vars.GCE_INSTANCE }}
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          release_sha="$(git rev-parse "refs/tags/v${VERSION}^{commit}")"
+          [[ "${release_sha}" =~ ^[0-9a-f]{40}$ ]]
           gcloud compute ssh "${GCE_INSTANCE}" --project "${GCP_PROJECT_ID}" --zone "${GCE_ZONE}" --tunnel-through-iap --quiet --command \
-            "sudo /opt/mae-storm-eats/bin/deploy '${VERSION}' 'ghcr.io/drewnorman/mae-storm-eats@${IMAGE_DIGEST}' '${GITHUB_SHA}'"
+            "sudo bash -s -- '${VERSION}' 'ghcr.io/drewnorman/mae-storm-eats@${IMAGE_DIGEST}' '${release_sha}' '${GITHUB_SHA}'" \
+            < scripts/release/deploy-production-host.sh

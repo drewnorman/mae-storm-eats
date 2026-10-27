@@ -102,16 +102,22 @@ and WordPress credentials together.
 ## Deploy and rollback
 
 The deployment workflow verifies the GitHub Release and resolves its immutable
-GHCR digest. Upgrades take a pre-deploy backup before changing the app image;
-the initial installation takes its first backup after initialization and smoke
-checks. It records app/infra SHAs, version, digest, and timestamp in
+GHCR digest. It checks that the image revision matches the release tag, runs
+that tag's operations scripts during deployment, and activates them only after
+success. VM startup restores scripts from the last successful deployment's
+`APP_SHA`, while host units and proxy configuration remain at `bootstrap_ref`.
+Before the first deployment, scripts also use `bootstrap_ref`. Upgrades
+take a pre-deploy backup before changing the app image; the initial installation
+takes its first backup after initialization and smoke checks. It records
+app/infra SHAs, version, digest, and timestamp in
 `/var/lib/shared/releases/deployed.env`.
 
-Failed upgrade smoke tests restore the prior image automatically. A failed first
-deployment has no prior image to restore and leaves its Quadlet units dormant
-on reboot. If an irreversible database migration ran, stop writes and restore
-the pre-deploy GCS backup with the restore procedure before restarting the prior
-image. Routine releases do not rebuild or replace the VM.
+Failed upgrade smoke tests restore the prior image automatically and leave the
+previous operations scripts active. A failed first deployment has no prior
+image to restore and leaves its Quadlet units dormant on reboot. If an
+irreversible database migration ran, stop writes and restore the pre-deploy GCS
+backup with the restore procedure before restarting the prior image. Routine
+releases do not rebuild or replace the VM.
 
 ## Disaster recovery and launch gate
 

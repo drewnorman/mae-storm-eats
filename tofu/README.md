@@ -33,11 +33,13 @@ same shell. The token is passed as the sensitive `cloudflare_api_token` input;
 neither `.env` nor its value belongs in Git.
 
 Set `bootstrap_ref` in the untracked `production.tfvars` to the approved
-release tag's full 40-character commit SHA. The host startup script checks out
-that exact commit before installing operations files, so the VM must be able to
-clone the source repository. The application containers remain dormant until
-the approved deployment workflow runs. Verify a fresh host bootstrap before
-the first deploy.
+release tag's full 40-character commit SHA. The host uses it for operations
+files before the first successful deployment. On later boots, operations scripts
+use `APP_SHA` from the last successful deployment metadata; host units and proxy
+configuration remain at `bootstrap_ref`. The VM must be able to clone and fetch
+the source repository. The application containers remain dormant
+until the approved deployment workflow runs. Verify a fresh host bootstrap
+before the first deploy.
 
 Do not place the production secret payload in `.tfvars`: add it as a Secret
 Manager version after apply so its values never enter OpenTofu state. Review the
