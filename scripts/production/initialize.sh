@@ -27,6 +27,11 @@ fi
 "${wp[@]}" plugin activate mae-storm-eats
 "${wp[@]}" theme activate mae-storm-eats
 
+# WordPress may choose plain permalinks when its first-install self-check runs
+# before the HTTPS proxy is ready. Recreate .htaccess for each ephemeral app
+# container so /wp-json/ routes reach the REST API.
+"${wp[@]}" rewrite structure '/%postname%/' --hard
+
 "${wp[@]}" eval 'if (!get_role("recipe_importer")) { fwrite(STDERR, "Recipe Importer role unavailable\n"); exit(1); }'
 
 if ! "${wp[@]}" user get pinterest-importer --field=ID >/dev/null 2>&1; then
