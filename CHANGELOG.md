@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.3.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.0...v0.3.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* **theme:** center private password screen ([bea14c5](https://github.com/drewnorman/mae-storm-eats/commit/bea14c5545bb28a055ec3309c9f24f9541461a23))
+
 ## [0.3.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.8...v0.3.0) (2026-10-27)
 
 
