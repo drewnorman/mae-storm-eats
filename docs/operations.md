@@ -75,15 +75,25 @@ automated Pinterest extraction or eliminate Pinterest terms-of-service risk.
 
 ## Credentials and rotation
 
-After initialization, create the handoff credential without recording it in
-shell history or logs:
+The first-launch `Owner Firefox` Application Password is in the GCP Secret
+Manager secret `mae-storm-eats-importer-application-password` in project
+`personal-drewnorman739`. Retrieve its latest version on a trusted terminal
+and save it in the owner's password manager. Do not paste it into chat:
+
+```sh
+gcloud secrets versions access latest --project personal-drewnorman739 --secret mae-storm-eats-importer-application-password
+```
+
+For rotation, create a replacement on the host without recording it in shell
+history or logs, store it as a new version of that Secret Manager secret, then
+revoke the old WordPress Application Password:
 
 ```sh
 sudo podman exec -it mae-storm-eats wp --allow-root user application-password create pinterest-importer "Owner Firefox" --porcelain
 ```
 
-Put the result directly in the owner's password manager. Revoke it with `wp user
-application-password delete` and issue a new one. Rotate database, admin,
+Replace the owner's password manager entry after rotation. Revoke the old
+credential with `wp user application-password delete`. Rotate database, admin,
 frontend, and salt values by adding a new Secret Manager version, hydrating it,
 and restarting the affected units. Database rotations require changing MariaDB
 and WordPress credentials together.
