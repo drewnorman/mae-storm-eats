@@ -3,9 +3,12 @@ ARG WORDPRESS_IMAGE=docker.io/library/wordpress:7.0.2-php8.3-apache@sha256:9fac4
 FROM docker.io/library/node:24.7.0-bookworm-slim@sha256:7cffa1b5307fcd0089c55ad60ec55de500cfc0e2c6e4440b1c44af68d288b1b5 AS assets
 WORKDIR /src
 COPY package.json yarn.lock .yarnrc.yml* ./
-COPY themes/mae-storm-eats/assets/src themes/mae-storm-eats/assets/src
+COPY themes/mae-storm-eats themes/mae-storm-eats
 COPY tailwind.config.js postcss.config.js tsconfig.json ./
-RUN corepack enable && corepack yarn install --immutable && corepack yarn build
+RUN corepack enable && corepack yarn install --immutable && corepack yarn build \
+    && grep -Fq '.site-header' themes/mae-storm-eats/assets/dist/app.css \
+    && grep -Fq '.brand-field' themes/mae-storm-eats/assets/dist/app.css \
+    && grep -Fq '.mx-auto' themes/mae-storm-eats/assets/dist/app.css
 
 FROM docker.io/library/composer:2.8.11@sha256:6133e78c003c0625fb763aa131622f537cd696ed14d98b5caa108db9be02ae9b AS composer
 WORKDIR /src
