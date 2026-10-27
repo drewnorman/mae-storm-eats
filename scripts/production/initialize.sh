@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+runtime_config="${MAE_STORM_EATS_RUNTIME_CONFIG:-/run/secrets/wordpress.env}"
+[[ -r "${runtime_config}" ]] || { echo "Runtime configuration is unavailable." >&2; exit 1; }
+set -a
+source "${runtime_config}"
+set +a
+
 site_url="${MAE_STORM_EATS_SITE_URL:?MAE_STORM_EATS_SITE_URL is required}"
 site_title="${MAE_STORM_EATS_SITE_TITLE:?MAE_STORM_EATS_SITE_TITLE is required}"
 admin_user="${MAE_STORM_EATS_ADMIN_USER:?MAE_STORM_EATS_ADMIN_USER is required}"
@@ -24,6 +30,7 @@ fi
 "${wp[@]}" core update-db
 "${wp[@]}" option update home "${site_url}"
 "${wp[@]}" option update siteurl "${site_url}"
+"${wp[@]}" option update blogname "${site_title}"
 "${wp[@]}" plugin activate mae-storm-eats
 "${wp[@]}" theme activate mae-storm-eats
 
