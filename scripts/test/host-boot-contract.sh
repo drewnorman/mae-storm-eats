@@ -23,10 +23,30 @@ grep -Fq 'RequiresMountsFor=/var/lib/shared' deploy/systemd/mae-storm-eats-secre
 grep -Fq 'instance/attributes/mae-storm-eats-bootstrap-ref' tofu/startup.sh
 grep -Fq '^[0-9a-f]{40}$' tofu/startup.sh
 grep -Fq 'checkout --detach --force "${bootstrap_ref}"' tofu/startup.sh
+grep -Fq 'archive "${ops_ref}" scripts/production' tofu/startup.sh
 grep -Fq 'UUID=%s %s ext4 defaults,nofail,discard 0 2' tofu/startup.sh
 grep -Fq 'systemctl cat "${unit}"' tofu/startup.sh
 if grep -Eq 'systemctl enable.*(mae-storm-eats-db|mae-storm-eats\.service|mae-storm-eats-proxy|mae-storm-eats-backup\.timer)' tofu/startup.sh; then
     echo 'Host startup must not enable the app or backup timer before first deployment.' >&2
+    exit 1
+fi
+
+temporary="$(mktemp -d)"
+trap 'rm -rf -- "${temporary}"' EXIT
+bootstrap="$(printf 'b%.0s' {1..40})"
+release="$(printf 'a%.0s' {1..40})"
+metadata="${temporary}/deployed.env"
+test "$(bash tofu/startup.sh --select-ops-ref "${bootstrap}" "${metadata}")" = "${bootstrap}"
+printf 'VERSION=0.2.7\nAPP_SHA=%s\n' "${release}" >"${metadata}"
+test "$(bash tofu/startup.sh --select-ops-ref "${bootstrap}" "${metadata}")" = "${release}"
+printf 'VERSION=0.2.7\nAPP_SHA=invalid\n' >"${metadata}"
+if bash tofu/startup.sh --select-ops-ref "${bootstrap}" "${metadata}" >/dev/null 2>&1; then
+    echo 'Host boot accepted invalid deployed APP_SHA.' >&2
+    exit 1
+fi
+printf 'APP_SHA=%s\nAPP_SHA=%s\n' "${release}" "${release}" >"${metadata}"
+if bash tofu/startup.sh --select-ops-ref "${bootstrap}" "${metadata}" >/dev/null 2>&1; then
+    echo 'Host boot accepted duplicate deployed APP_SHA.' >&2
     exit 1
 fi
 
