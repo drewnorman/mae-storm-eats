@@ -9,14 +9,12 @@ the same release tag.
 
 ### Features
 
-* **access:** manage frontend password in WordPress ([2320b78](https://github.com/drewnorman/mae-storm-eats/commit/2320b787d2785e977d01759a92efde4737a66b6d))
 * **access:** manage frontend password in WordPress ([b950231](https://github.com/drewnorman/mae-storm-eats/commit/b9502319f4ab86a70223d5255b7b8696e52dddb5))
 
 
 ### Bug Fixes
 
 * **dev:** execute and verify WordPress boot scripts ([960eaa9](https://github.com/drewnorman/mae-storm-eats/commit/960eaa92e449105be09a27012129c6b34bb0d62f))
-* **ops:** align production scripts with deployed release ([deb253e](https://github.com/drewnorman/mae-storm-eats/commit/deb253eebbec05ad0a467d69f7dd99355b7f6044))
 * **ops:** align production scripts with deployed release ([694341b](https://github.com/drewnorman/mae-storm-eats/commit/694341bef66f1e907f5414b2b9dedb48e4aea35d))
 
 ## [0.2.8](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.7...v0.2.8) (2026-10-27)
