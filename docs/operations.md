@@ -13,7 +13,8 @@ drills, then launch directly to production during the owner's acceptance window.
    full commit SHA as `bootstrap_ref` in the untracked `production.tfvars`.
    The production host must be able to clone the source repository at that
    commit.
-2. Review `tofu plan -var-file=production.tfvars`, then apply it to create the
+2. Load the Cloudflare token as described in `tofu/README.md`. Review
+   `tofu plan -var-file=production.tfvars`, then apply it to create the
    host, static IP, protected disk, DNS, secret, backup bucket, uptime check,
    alerts, and a repository-specific GitHub deploy identity. The startup script installs host operations files at exactly
    `bootstrap_ref`; the Quadlet containers remain dormant until deployment.

@@ -15,13 +15,22 @@ terraform {
 }
 ```
 
-Initialize it with:
+Copy `.env.example` to the ignored `.env`, replace the placeholder with the
+Cloudflare DNS API token, and run `chmod 600 .env`. From the `tofu` directory,
+load it into the shell before planning or applying:
 
 ```sh
+set -a
+. ./.env
+set +a
 tofu init
 tofu validate
 tofu plan -var-file=production.tfvars
 ```
+
+After reviewing the plan, run `tofu apply -var-file=production.tfvars` in the
+same shell. The token is passed as the sensitive `cloudflare_api_token` input;
+neither `.env` nor its value belongs in Git.
 
 Set `bootstrap_ref` in the untracked `production.tfvars` to the approved
 release tag's full 40-character commit SHA. The host startup script checks out
