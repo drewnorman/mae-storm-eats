@@ -52,9 +52,9 @@ final class AccessGate implements ServiceProviderInterface
             return true;
         }
 
-        $configured_password = $this->configuredPassword();
+        $credential = $this->activeCredential();
 
-        if ($configured_password === null) {
+        if ($credential === null) {
             return false;
         }
 
@@ -76,7 +76,7 @@ final class AccessGate implements ServiceProviderInterface
             return false;
         }
 
-        return hash_equals($this->cookieSignature($issued_at, $configured_password), $parts[1]);
+        return hash_equals($this->cookieSignature($issued_at, $credential['value']), $parts[1]);
     }
 
     public function addNoindexMeta(): void
@@ -117,22 +117,22 @@ final class AccessGate implements ServiceProviderInterface
             return __('The login form expired. Try again.', 'mae-storm-eats');
         }
 
-        $configured_password = $this->configuredPassword();
+        $credential = $this->activeCredential();
 
-        if ($configured_password === null) {
+        if ($credential === null) {
             return __('Private access is not configured yet.', 'mae-storm-eats');
         }
 
         $submitted_password = $_POST['mae_storm_eats_password'] ?? '';
 
-        if (! is_string($submitted_password) || ! hash_equals($configured_password, wp_unslash($submitted_password))) {
+        if (! is_string($submitted_password) || ! $this->passwordMatches(wp_unslash($submitted_password), $credential)) {
             $this->recordFailure();
 
             return __('Invalid password.', 'mae-storm-eats');
         }
 
         $this->clearFailures();
-        $this->setAccessCookie($configured_password);
+        $this->setAccessCookie($credential['value']);
 
         return null;
     }
@@ -167,8 +167,18 @@ final class AccessGate implements ServiceProviderInterface
         \Timber\Timber::render($template, $context);
     }
 
-    private function configuredPassword(): ?string
+    /** @return array{type: 'hash'|'plain', value: string}|null */
+    private function activeCredential(): ?array
     {
+        $cms_hash = get_option(PrivateAccessSettings::OPTION, null);
+
+        // An invalid CMS value must not reactivate the older server password.
+        if ($cms_hash !== null) {
+            return is_string($cms_hash) && $cms_hash !== ''
+                ? ['type' => 'hash', 'value' => $cms_hash]
+                : null;
+        }
+
         if (defined(self::PASSWORD_CONSTANT) && is_string(constant(self::PASSWORD_CONSTANT))) {
             $password = constant(self::PASSWORD_CONSTANT);
         } else {
@@ -179,13 +189,21 @@ final class AccessGate implements ServiceProviderInterface
             return null;
         }
 
-        return $password;
+        return ['type' => 'plain', 'value' => $password];
     }
 
-    private function setAccessCookie(string $configured_password): void
+    /** @param array{type: 'hash'|'plain', value: string} $credential */
+    private function passwordMatches(string $submitted_password, array $credential): bool
+    {
+        return $credential['type'] === 'hash'
+            ? wp_check_password($submitted_password, $credential['value'])
+            : hash_equals($credential['value'], $submitted_password);
+    }
+
+    private function setAccessCookie(string $credential_value): void
     {
         $issued_at = time();
-        $value = $issued_at . '|' . $this->cookieSignature($issued_at, $configured_password);
+        $value = $issued_at . '|' . $this->cookieSignature($issued_at, $credential_value);
 
         setcookie(self::COOKIE, $value, [
             'expires' => $issued_at + self::SESSION_SECONDS,
@@ -199,9 +217,9 @@ final class AccessGate implements ServiceProviderInterface
         $_COOKIE[self::COOKIE] = $value;
     }
 
-    private function cookieSignature(int $issued_at, string $configured_password): string
+    private function cookieSignature(int $issued_at, string $credential_value): string
     {
-        return hash_hmac('sha256', (string) $issued_at, wp_salt('auth') . $configured_password);
+        return hash_hmac('sha256', (string) $issued_at, wp_salt('auth') . $credential_value);
     }
 
     private function redirectAfterLogin(): void

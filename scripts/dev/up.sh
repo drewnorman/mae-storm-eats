@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -euo pipefail
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repo_root="$(CDPATH= cd -- "${script_dir}/../.." && pwd)"
@@ -48,7 +48,7 @@ fi
 
 attempt=1
 while [ "${attempt}" -le 30 ]; do
-    if "${compose[@]}" exec -T wordpress php /dev/stdin < "${script_dir}/bootstrap-wordpress.php"; then
+    if cat "${script_dir}/bootstrap-wordpress.php" | "${compose[@]}" exec -T wordpress php /dev/stdin; then
         if [ "${MAE_STORM_EATS_DEV_DETACH:-0}" = "1" ]; then
             echo "WordPress is running at http://wordpress.mae-storm-eats.localhost"
             exit 0

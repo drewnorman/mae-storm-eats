@@ -20,6 +20,8 @@ First-party WordPress plugin for the private eats.maestorm.com recipe app.
 - Performs activation checks for PHP 8.3+ and WordPress 6.5+.
 - Provides recipe view helpers consumed by the first-party Timber theme.
 - Protects frontend access through a shared-password gate.
+- Lets administrators rotate the shared frontend password under **Settings →
+  Private Access**, storing only a hash in WordPress.
 - Imports Pinterest boards, owner reviews, replies, and photos through a
   restricted Firefox WebExtension and capability-protected REST routes.
 

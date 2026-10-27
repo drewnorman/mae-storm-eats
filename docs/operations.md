@@ -76,6 +76,23 @@ automated Pinterest extraction or eliminate Pinterest terms-of-service risk.
 
 ## Credentials and rotation
 
+To change the shared frontend password, sign in as a WordPress administrator
+and open **Settings → Private Access**. Enter and confirm the new password;
+the form never displays the current one. Saving invalidates existing shared
+frontend access cookies. Verify the new password and a protected recipe route
+in a private browser window, where the WordPress admin session cannot bypass
+the shared-password gate. The server's `MAE_STORM_EATS_SHARED_PASSWORD` remains
+the initial fallback only when no WordPress-managed password exists. An invalid
+WordPress password setting denies shared access instead of restoring the old
+server password; an administrator can repair it from the same settings page.
+
+Database backups include the WordPress-managed password hash. After restoring
+a database, verify which password source is active on the settings page and
+test frontend access in a private window. Restoring a database from before the
+first CMS password change reactivates the server password. Rolling back to a
+release without this setting also reactivates the server password; update the
+server secret to the intended password before such a rollback if needed.
+
 The first-launch `Owner Firefox` Application Password is in the GCP Secret
 Manager secret `mae-storm-eats-importer-application-password` in project
 `personal-drewnorman739`. Retrieve its latest version on a trusted terminal
@@ -95,9 +112,11 @@ sudo podman exec -it mae-storm-eats wp --allow-root user application-password cr
 
 Replace the owner's password manager entry after rotation. Revoke the old
 credential with `wp user application-password delete`. Rotate database, admin,
-frontend, and salt values by adding a new Secret Manager version, hydrating it,
-and restarting the affected units. Database rotations require changing MariaDB
-and WordPress credentials together.
+and salt values by adding a new Secret Manager version, hydrating it, and
+restarting the affected units. Database rotations require changing MariaDB and
+WordPress credentials together. Rotate the frontend password in **Settings →
+Private Access** once a CMS password exists; before that, rotate the server
+secret and restart the app container.
 
 ## Deploy and rollback
 
