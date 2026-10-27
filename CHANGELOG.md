@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.2.5](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.4...v0.2.5) (2026-10-27)
+
+
+### Bug Fixes
+
+* **build:** include theme templates in image asset compilation ([b768343](https://github.com/drewnorman/mae-storm-eats/commit/b7683430957357b6094318985ebadae48fecb931))
+
 ## [0.2.4](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.3...v0.2.4) (2026-10-27)
 
 
