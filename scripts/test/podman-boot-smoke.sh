@@ -30,7 +30,9 @@ fi
 MAE_STORM_EATS_DEV_DETACH=1 just dev-up
 MAE_STORM_EATS_DEV_DETACH=1 just dev-up
 
-"${compose[@]}" exec -T wordpress php /dev/stdin < "${script_dir}/verify-wordpress.php"
+verification="$(cat "${script_dir}/verify-wordpress.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
+grep -Fq 'WordPress development stack verification passed.' <<< "${verification}"
+echo "${verification}"
 
 rendered_config="$("${compose[@]}" config)"
 grep -Fq 'traefik.http.routers.mae-storm-eats-wordpress.rule' <<< "${rendered_config}"

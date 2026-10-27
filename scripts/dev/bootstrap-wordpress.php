@@ -7,6 +7,9 @@ const MAE_STORM_EATS_THEME = 'mae-storm-eats';
 
 chdir('/var/www/html');
 
+// WordPress otherwise redirects uninstalled sites before this script can call wp_install().
+define('WP_INSTALLING', true);
+
 if (! defined('WP_DEBUG_DISPLAY')) {
     define('WP_DEBUG_DISPLAY', false);
 }
@@ -15,6 +18,9 @@ require '/var/www/html/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 require_once ABSPATH . 'wp-admin/includes/theme.php';
 require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+if (is_readable(WP_CONTENT_DIR . '/vendor/autoload.php')) {
+    require_once WP_CONTENT_DIR . '/vendor/autoload.php';
+}
 
 if (! is_blog_installed()) {
     $site_title = getenv('MAE_STORM_EATS_DEV_SITE_TITLE') ?: 'Mae Storm Eats (Local)';
