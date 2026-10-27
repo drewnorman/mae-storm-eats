@@ -17,6 +17,7 @@ final class Plugin
     {
         $this->services = [
             new AccessGate(),
+            new PrivateAccessSettings(),
             new AdminBarDisabled(),
             new CommentsDisabled(),
             new ContentTypes(),

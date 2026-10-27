@@ -42,6 +42,11 @@ It must define:
 Hydration writes `/var/lib/shared/runtime/wordpress.env` as root with mode
 `0600`; scripts validate names without printing values.
 
+`MAE_STORM_EATS_SHARED_PASSWORD` supplies private frontend access until an
+administrator saves a replacement under **Settings → Private Access**. The
+WordPress-managed value is stored as a database hash and takes precedence. The
+environment value remains required for initial installation and recovery.
+
 ## Backup and Restore
 
 The daily timer dumps MariaDB first and refuses to upload a backup if the dump

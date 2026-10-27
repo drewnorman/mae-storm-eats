@@ -34,6 +34,10 @@ verification="$(cat "${script_dir}/verify-wordpress.php" | "${compose[@]}" exec 
 grep -Fq 'WordPress development stack verification passed.' <<< "${verification}"
 echo "${verification}"
 
+private_access="$(cat "${script_dir}/private-access-settings.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
+grep -Fq 'Private access settings integration checks passed.' <<< "${private_access}"
+echo "${private_access}"
+
 rendered_config="$("${compose[@]}" config)"
 grep -Fq 'traefik.http.routers.mae-storm-eats-wordpress.rule' <<< "${rendered_config}"
 grep -Fq 'local-proxy' <<< "${rendered_config}"

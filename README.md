@@ -85,6 +85,11 @@ types, taxonomies, meta, imports, admin review, CLI commands, REST protection,
 and the shared-password access gate. The theme owns Timber templates, assets,
 layout, and frontend query presentation.
 
+Administrators can change the shared frontend password under **Settings → Private
+Access**. Until one is saved there, the gate uses
+`MAE_STORM_EATS_SHARED_PASSWORD` from the environment. The WordPress-managed
+password is stored as a hash and takes precedence once set.
+
 Timber is a required app dependency. The active app theme registers the Timber
 locations used by plugin-facing templates, including the private login template
 rendered by the access gate.
