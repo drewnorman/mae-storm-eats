@@ -19,6 +19,7 @@
             <img src="{{ theme.link }}/assets/src/images/mae-storm-eats.svg" alt="">
           </a>
 
+          {% block header_trailing %}
           <div class="relative justify-self-end">
             <button class="conversions-toggle" type="button" data-conversions-toggle aria-expanded="false" aria-controls="conversions-panel">
               <span class="hidden sm:inline">Conversions</span>
@@ -70,6 +71,7 @@
               </form>
             </section>
           </div>
+          {% endblock %}
         </div>
       </header>
 

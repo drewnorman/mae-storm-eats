@@ -24,12 +24,12 @@ done
 case "${url}" in
     */wp-login.php) printf 'WordPress login'; exit 0 ;;
     https://eats.maestorm.com/)
-        printf 'Private recipes' >"${output}"
+        printf '<input name="mae_storm_eats_password">' >"${output}"
         printf '401'
         ;;
     */wp-json/wp/v2/recipes)
         if [[ "${MAE_STORM_EATS_SMOKE_TEST_REST_MODE:-json}" == html ]]; then
-            printf 'Private recipes' >"${output}"
+            printf '<input name="mae_storm_eats_password">' >"${output}"
             printf '401 text/html; charset=UTF-8'
         else
             printf '{"code":"mae_storm_eats_private_rest"}' >"${output}"
