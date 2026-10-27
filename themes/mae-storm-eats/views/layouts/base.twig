@@ -8,8 +8,8 @@
   <body class="{{ body_class }} min-h-full antialiased">
     <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:shadow-lg" href="#content">Skip to content</a>
 
-    <div class="min-h-screen bg-sand">
-      <header class="relative z-20 print:hidden">
+    <div class="{% block page_shell_classes %}min-h-screen{% endblock %} bg-sand">
+      <header class="{% block header_classes %}relative{% endblock %} z-20 print:hidden">
         <div class="site-header">
           <div class="site-header__leading">
             {% block header_leading %}{% endblock %}
@@ -75,7 +75,7 @@
         </div>
       </header>
 
-      <main id="content" data-recipe-shell>
+      <main id="content" class="{% block main_classes %}{% endblock %}" data-recipe-shell>
         {% block content %}{% endblock %}
       </main>
     </div>
