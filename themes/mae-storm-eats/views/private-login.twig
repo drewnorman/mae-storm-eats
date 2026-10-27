@@ -1,19 +1,20 @@
 {% extends "layouts/base.twig" %}
 
+{% block page_shell_classes %}relative{% endblock %}
+{% block header_classes %}absolute inset-x-0 top-0{% endblock %}
+{% block main_classes %}flex min-h-dvh items-center justify-center px-4 py-[8.5rem] sm:py-[10.5rem]{% endblock %}
 {% block header_trailing %}{% endblock %}
 
 {% block content %}
-  <section class="mx-auto grid min-h-[calc(100vh-10rem)] max-w-lg place-items-center px-4 py-10">
-    <form class="w-full border-2 border-coral bg-cream p-7 shadow-lg sm:p-10" method="post" action="{{ login_action|default(site.url) }}">
-      {% if login_error %}
-        <p class="mb-5 border-l-4 border-red-700 bg-white px-4 py-3 text-sm text-red-800" role="alert">{{ login_error }}</p>
-      {% endif %}
+  <form class="w-full max-w-lg border-2 border-coral bg-cream p-7 shadow-lg sm:p-10" method="post" action="{{ login_action|default(site.url) }}">
+    {% if login_error %}
+      <p class="mb-5 border-l-4 border-red-700 bg-white px-4 py-3 text-sm text-red-800" role="alert">{{ login_error }}</p>
+    {% endif %}
 
-      <label class="brand-label" for="mae-storm-eats-password">Password</label>
-      <input id="mae-storm-eats-password" class="brand-field mt-2" type="password" name="mae_storm_eats_password" autocomplete="current-password" required>
-      {{ login_nonce|raw }}
+    <label class="brand-label" for="mae-storm-eats-password">Password</label>
+    <input id="mae-storm-eats-password" class="brand-field mt-2" type="password" name="mae_storm_eats_password" autocomplete="current-password" required>
+    {{ login_nonce|raw }}
 
-      <button class="mt-7 w-full bg-olive px-5 py-3 text-lg uppercase text-white transition hover:bg-plum" type="submit">Enter</button>
-    </form>
-  </section>
+    <button class="mt-7 w-full bg-olive px-5 py-3 text-lg uppercase text-white transition hover:bg-plum" type="submit">Enter</button>
+  </form>
 {% endblock %}
