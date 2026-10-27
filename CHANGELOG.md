@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.2.8](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.7...v0.2.8) (2026-10-27)
+
+
+### Bug Fixes
+
+* **infra:** load Cloudflare token from ignored env ([2c5083a](https://github.com/drewnorman/mae-storm-eats/commit/2c5083a3e2877f3c726fae411edd360219ea8401))
+* **infra:** load Cloudflare token from ignored env ([5a5e7d8](https://github.com/drewnorman/mae-storm-eats/commit/5a5e7d8aa0aa2f4515df73db2b5fd06c21e74fb4))
+
 ## [0.2.7](https://github.com/drewnorman/mae-storm-eats/compare/v0.2.6...v0.2.7) (2026-10-27)
 
 
