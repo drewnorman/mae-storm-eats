@@ -20,7 +20,8 @@ trap 'rm -f -- "${response}"' EXIT
 "${origin[@]}" --fail --location "${url}/wp-login.php" >/dev/null
 
 status="$("${origin[@]}" --location --output "${response}" --write-out '%{http_code}' "${url}/")"
-if [[ "${status}" != 401 ]] || ! grep -Fq 'Private recipes' "${response}"; then
+if [[ "${status}" != 401 ]] || ! grep -Fq 'name="mae_storm_eats_password"' "${response}" \
+    || grep -Fq 'data-conversions-toggle' "${response}"; then
     echo "Private frontend did not render its protected login screen (HTTP ${status})." >&2
     exit 1
 fi

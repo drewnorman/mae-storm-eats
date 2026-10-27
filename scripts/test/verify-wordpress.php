@@ -46,7 +46,8 @@ $context = stream_context_create([
 ]);
 $response = file_get_contents('http://127.0.0.1/', false, $context);
 
-if (! is_string($response) || ! str_contains($response, 'Private recipes')) {
+if (! is_string($response) || ! str_contains($response, 'name="mae_storm_eats_password"')
+    || str_contains($response, 'data-conversions-toggle')) {
     $failures[] = 'Apache did not render the private-access page.';
 }
 
