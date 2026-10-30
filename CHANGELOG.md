@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.3.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.1...v0.3.2) (2026-10-30)
+
+
+### Performance Improvements
+
+* **import:** speed up Pinterest batches ([9e3423c](https://github.com/drewnorman/mae-storm-eats/commit/9e3423c8428bc07ce58570930d07e4f1ea489892))
+
 ## [0.3.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.0...v0.3.1) (2026-10-27)
 
 
