@@ -35,7 +35,7 @@ for (const id of [
   "refresh-reviews",
 ])
   assert.match(popup, new RegExp(`id="${id}"`));
-assert.match(popup, /Import next 10/);
+assert.equal((popup.match(/Import next 25/g) || []).length, 2);
 assert.match(popup, /Import reviews &amp; photos/);
 assert.doesNotMatch(popup, /id="host"|id="username"|id="password"/);
 
@@ -67,10 +67,17 @@ assert.match(collector, /ownerMatches/);
 
 const background = readFileSync("extension/background.js", "utf8");
 assert.match(background, /CHECKPOINT_VERSION = 5/);
-assert.match(background, /BATCH_SIZE = 10/);
-assert.match(background, /PIN_DELAY_MIN_MS = 25000/);
-assert.match(background, /PIN_DELAY_MAX_MS = 55000/);
-assert.match(background, /DAILY_PIN_CAP = 50/);
+assert.match(background, /BATCH_SIZE = 25/);
+assert.match(background, /PIN_DELAY_MIN_MS = 15000/);
+assert.match(background, /PIN_DELAY_MAX_MS = 30000/);
+assert.match(background, /LONG_PAUSE_EVERY_MIN = 10/);
+assert.match(background, /LONG_PAUSE_EVERY_MAX = 12/);
+assert.match(background, /LONG_PAUSE_MIN_MS = 60000/);
+assert.match(background, /LONG_PAUSE_MAX_MS = 90000/);
+assert.doesNotMatch(
+  background,
+  /DAILY_PIN_CAP|dailyCapReached|recordPinProcessed/,
+);
 assert.match(background, /MAX_PIN_RETRIES = 3/);
 assert.match(background, /\/pinterest-imports\/pins/);
 assert.match(background, /\/pinterest-imports\/queue\?stage=/);
@@ -181,8 +188,9 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
       migrateCheckpoint,
       pauseRun,
       nextPinDelay,
-      dailyCapReached,
-      recordPinProcessed,
+      startStage,
+      processQueue,
+      resumeRun,
       exhaustedPinIds,
       incrementRetryCount,
       clearRetryCount,
@@ -373,6 +381,74 @@ assert.equal(migrated.version, 5);
 assert.equal(migrated.status, "ready");
 assert.equal(migratedCapture, true);
 
+const checkpointHarness = backgroundHarness();
+checkpointHarness.state.run = {
+  version: 5,
+  kind: "stage",
+  status: "waiting",
+  queue: Array.from({ length: 25 }, (_, index) => ({ pin_id: String(index) })),
+  cursor: 7,
+  pinsSinceLongPause: 9,
+};
+assert.equal(
+  await checkpointHarness.hooks.migrateCheckpoint(),
+  checkpointHarness.state.run,
+  "An active checkpoint must survive the pacing update.",
+);
+
+let resumedPinUrl = "";
+const resumeHarness = backgroundHarness({
+  tabs: {
+    create: async (options) => {
+      resumedPinUrl = options.url;
+      return { id: 10, windowId: 4, status: "complete", url: options.url };
+    },
+  },
+});
+resumeHarness.state.run = {
+  version: 5,
+  kind: "stage",
+  status: "paused",
+  stage: "recipe",
+  queue: Array.from({ length: 25 }, (_, index) => ({
+    pin_id: String(1000 + index),
+    pin_url: `https://www.pinterest.com/pin/${1000 + index}/`,
+  })),
+  cursor: 7,
+  completed: 7,
+  failed: 0,
+  windowId: 4,
+  pinsSinceLongPause: 9,
+};
+await resumeHarness.hooks.resumeRun(1);
+assert.equal(resumedPinUrl, "https://www.pinterest.com/pin/1007/");
+assert.equal(resumeHarness.state.run.cursor, 8);
+assert.equal(resumeHarness.state.run.queue.length, 25);
+
+let oldCapAlarmCleared = false;
+const oldCapHarness = backgroundHarness({
+  alarms: {
+    clear: async (name) => {
+      oldCapAlarmCleared = name === "mae-storm-eats-import-resume";
+    },
+  },
+});
+oldCapHarness.state.run = {
+  version: 5,
+  kind: "stage",
+  status: "paused",
+  queue: [{ pin_id: "789" }],
+  cursor: 0,
+  error:
+    "Daily import cap of 50 pins reached today. The batch will resume tomorrow.",
+  resumeNotBefore: new Date(Date.now() + 60_000).toISOString(),
+};
+const oldCapCheckpoint = await oldCapHarness.hooks.migrateCheckpoint();
+assert.equal(oldCapCheckpoint.status, "paused");
+assert.equal(oldCapCheckpoint.queue.length, 1);
+assert.equal(oldCapCheckpoint.resumeNotBefore, null);
+assert.equal(oldCapAlarmCleared, true);
+
 let resumeAlarm = null;
 const pauseHarness = backgroundHarness({
   alarms: {
@@ -421,16 +497,64 @@ const pacingHarness = backgroundHarness();
 const normalDelay = pacingHarness.hooks.nextPinDelay({
   pinsSinceLongPause: 0,
 });
-assert.ok(normalDelay.delayMs >= 25000 && normalDelay.delayMs <= 55000);
-const longDelay = pacingHarness.hooks.nextPinDelay({ pinsSinceLongPause: 5 });
-assert.ok(longDelay.delayMs >= 120000 && longDelay.delayMs <= 240000);
+assert.ok(normalDelay.delayMs >= 15000 && normalDelay.delayMs <= 30000);
+assert.equal(normalDelay.pinsSinceLongPause, 1);
+const longDelay = pacingHarness.hooks.nextPinDelay({ pinsSinceLongPause: 11 });
+assert.ok(longDelay.delayMs >= 60000 && longDelay.delayMs <= 90000);
 assert.equal(longDelay.pinsSinceLongPause, 0);
 
-const dailyHarness = backgroundHarness();
-assert.equal(await dailyHarness.hooks.dailyCapReached(), false);
-for (let i = 0; i < 50; i += 1) await dailyHarness.hooks.recordPinProcessed();
-assert.equal(dailyHarness.state.dailyUsage.count, 50);
-assert.equal(await dailyHarness.hooks.dailyCapReached(), true);
+for (const stage of ["recipe", "reviews"]) {
+  let queueFetches = 0;
+  const batchHarness = backgroundHarness({
+    fetchImpl: async (url) => ({
+      ok: true,
+      json: async () => {
+        if (url.includes("/queue?")) {
+          queueFetches += 1;
+          return {
+            pins: Array.from({ length: 30 }, (_, index) => ({
+              pin_id: String(1000 + index),
+              pin_url: `https://www.pinterest.com/pin/${1000 + index}/`,
+            })),
+          };
+        }
+        return { status: "complete", stages: {} };
+      },
+    }),
+    tabs: {
+      sendMessage: async (_id, message) =>
+        message.type === "ping"
+          ? { ready: true }
+          : {
+              pin_url: "https://www.pinterest.com/pin/1000/",
+              source_url: "https://example.com/recipe",
+              comments_complete: true,
+            },
+    },
+  });
+  batchHarness.state.run.pinsSinceLongPause = 11;
+  batchHarness.state.dailyUsage = {
+    count: 50,
+    windowStart: new Date().toISOString(),
+  };
+  await batchHarness.hooks.startStage(stage, "pending", 1);
+  assert.equal(batchHarness.state.run.queue.length, 25);
+  assert.equal(batchHarness.state.run.cursor, 1);
+  assert.equal(batchHarness.state.run.status, "waiting");
+  assert.equal(batchHarness.state.run.pinsSinceLongPause, 0);
+  const waitMs =
+    new Date(batchHarness.state.run.nextPinAt).getTime() - Date.now();
+  assert.ok(waitMs >= 59000 && waitMs <= 91000);
+  batchHarness.state.run.cursor = 25;
+  batchHarness.state.run.completed = 25;
+  await batchHarness.hooks.processQueue();
+  assert.equal(batchHarness.state.run.status, "complete");
+  assert.equal(
+    queueFetches,
+    1,
+    "A finished batch must not fetch the next 25 pins.",
+  );
+}
 
 const retryHarness = backgroundHarness();
 for (let i = 0; i < 3; i += 1)

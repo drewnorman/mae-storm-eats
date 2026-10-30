@@ -83,7 +83,7 @@ final class PinImportStore
     }
 
     /** @return list<array<string,mixed>> */
-    public function queue(string $stage, string $mode, int $limit = 10): array
+    public function queue(string $stage, string $mode, int $limit = 25): array
     {
         $status = match ($mode) { 'retry' => 'failed', 'refresh' => 'complete', default => 'pending' };
         $status_key = $stage === 'reviews' ? self::META_REVIEW_STATUS : self::META_RECIPE_STATUS;
@@ -98,7 +98,7 @@ final class PinImportStore
         }
         $time_key = $stage === 'reviews' ? 'review_updated_at' : 'recipe_updated_at';
         usort($records, static fn (array $a, array $b): int => strcmp((string) ($a[$time_key] ?: $a['captured_at']), (string) ($b[$time_key] ?: $b['captured_at'])));
-        return array_slice($records, 0, max(1, min(10, $limit)));
+        return array_slice($records, 0, max(1, min(25, $limit)));
     }
 
     /** @return array<string,array<string,int>> */

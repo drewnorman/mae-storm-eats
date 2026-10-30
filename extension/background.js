@@ -7,17 +7,16 @@ let activePinTabId = null;
 const IMPORT_ALARM = "mae-storm-eats-import-pump";
 const RESUME_ALARM = "mae-storm-eats-import-resume";
 const CHECKPOINT_VERSION = 5;
-const BATCH_SIZE = 10;
-const PIN_DELAY_MIN_MS = 25000;
-const PIN_DELAY_MAX_MS = 55000;
-const LONG_PAUSE_EVERY_MIN = 4;
-const LONG_PAUSE_EVERY_MAX = 6;
-const LONG_PAUSE_MIN_MS = 120000;
-const LONG_PAUSE_MAX_MS = 240000;
+const BATCH_SIZE = 25;
+const PIN_DELAY_MIN_MS = 15000;
+const PIN_DELAY_MAX_MS = 30000;
+const LONG_PAUSE_EVERY_MIN = 10;
+const LONG_PAUSE_EVERY_MAX = 12;
+const LONG_PAUSE_MIN_MS = 60000;
+const LONG_PAUSE_MAX_MS = 90000;
 const JSON_TIMEOUT_MS = 20000;
 const PHOTO_TIMEOUT_MS = 30000;
 const MEDIA_TIMEOUT_MS = 60000;
-const DAILY_PIN_CAP = 50;
 const BACKOFF_TIERS_MS = [10 * 60 * 1000, 30 * 60 * 1000, 2 * 60 * 60 * 1000];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_PIN_RETRIES = 3;
@@ -43,40 +42,6 @@ function nextPinDelay(run) {
     delayMs: randomBetween(PIN_DELAY_MIN_MS, PIN_DELAY_MAX_MS),
     pinsSinceLongPause: sincePause,
   };
-}
-
-function startOfNextDay() {
-  const next = new Date();
-  next.setHours(24, 0, 0, 0);
-  return next;
-}
-
-function isSameDay(a, b) {
-  return new Date(a).toDateString() === new Date(b).toDateString();
-}
-
-async function recordPinProcessed() {
-  const { dailyUsage = {} } = await browser.storage.local.get("dailyUsage");
-  const now = new Date().toISOString();
-  const next =
-    dailyUsage.windowStart && isSameDay(dailyUsage.windowStart, now)
-      ? {
-          windowStart: dailyUsage.windowStart,
-          count: (dailyUsage.count || 0) + 1,
-        }
-      : { windowStart: now, count: 1 };
-  await browser.storage.local.set({ dailyUsage: next });
-  return next;
-}
-
-async function dailyCapReached() {
-  const { dailyUsage = {} } = await browser.storage.local.get("dailyUsage");
-  if (
-    !dailyUsage.windowStart ||
-    !isSameDay(dailyUsage.windowStart, new Date().toISOString())
-  )
-    return false;
-  return (dailyUsage.count || 0) >= DAILY_PIN_CAP;
 }
 
 async function recordPause(reason, blockKind, blockEvidence = "") {
@@ -784,7 +749,6 @@ async function processQueue() {
       (run.completed || 0) + (outcome.status === "complete" ? 1 : 0);
     const failed = (run.failed || 0) + (outcome.status === "failed" ? 1 : 0);
     const cursor = run.cursor + 1;
-    await recordPinProcessed();
     if (cursor >= run.queue.length) {
       await setRun({
         cursor,
@@ -795,13 +759,6 @@ async function processQueue() {
         blockKind: null,
       });
       return schedulePump(100);
-    }
-    if (await dailyCapReached()) {
-      await setRun({ cursor, completed, failed, currentPin: null });
-      return pauseRun(
-        `Daily import cap of ${DAILY_PIN_CAP} pins reached today. The batch will resume tomorrow.`,
-        { resumeAt: startOfNextDay().toISOString() },
-      );
     }
     const { delayMs, pinsSinceLongPause } = nextPinDelay(run);
     const nextPinAt = new Date(Date.now() + delayMs).toISOString();
@@ -882,7 +839,7 @@ async function startStage(stage, mode, tabId) {
 
 async function resumeRun(tabId) {
   if (activeRun) return;
-  const { run: pending = {} } = await browser.storage.local.get("run");
+  const pending = await migrateCheckpoint();
   if (
     pending.resumeNotBefore &&
     Date.now() < new Date(pending.resumeNotBefore).getTime()
@@ -947,7 +904,20 @@ async function autoResume() {
 
 async function migrateCheckpoint() {
   const { run = {} } = await browser.storage.local.get("run");
-  if (run.version === CHECKPOINT_VERSION) return run;
+  if (run.version === CHECKPOINT_VERSION) {
+    if (
+      run.kind === "stage" &&
+      run.status === "paused" &&
+      /^Daily import cap of 50 pins reached today\./.test(run.error || "")
+    ) {
+      await browser.alarms.clear(RESUME_ALARM);
+      return setRun({
+        resumeNotBefore: null,
+        error: "Daily import cap removed. Choose Resume to continue.",
+      });
+    }
+    return run;
+  }
   if (run.version === 3 && Array.isArray(run.pins) && run.pins.length) {
     try {
       await api("/pinterest-imports/pins", {
@@ -1027,7 +997,10 @@ browser.runtime.onMessage.addListener(async (message) => {
       message: permissionMessage,
       verifiedAt: null,
     });
-  if (message.type === "status") return refreshInventory();
+  if (message.type === "status") {
+    await migrateCheckpoint();
+    return refreshInventory();
+  }
   if (message.type === "discoveryProgress") {
     const { run = {} } = await browser.storage.local.get("run");
     if (run.status === "capturing")
