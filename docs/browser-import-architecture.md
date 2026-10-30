@@ -12,9 +12,9 @@ schema.org Recipe JSON-LD. It never signs in to Pinterest, crawls boards,
 schedules Pinterest work, or receives Pinterest session material.
 
 Board capture never opens individual pins. Destination and review stages obtain
-server-backed batches of at most ten saved pin URLs and space direct pin visits
-with a randomized, non-fixed delay (with an escalating cooldown and a daily
-cap if Pinterest pushes back — see `docs/browser-import.md`). Once a
+server-backed batches of at most 25 saved pin URLs and space direct pin visits
+with a randomized, non-fixed delay and an escalating cooldown if Pinterest
+pushes back (see `docs/browser-import.md`). Once a
 destination is captured, recipe extraction bypasses Pinterest entirely. Review
 collection is deferred to its own explicit stage.
 

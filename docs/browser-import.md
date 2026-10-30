@@ -25,8 +25,8 @@ and preserves completed work.
 
 ### 2. Import recipes
 
-Choose **Import next 10** under Import recipes from any browser tab. WordPress
-returns up to ten pending saved pins. The extension opens each saved pin URL in
+Choose **Import next 25** under Import recipes from any browser tab. WordPress
+returns up to 25 pending saved pins. The extension opens each saved pin URL in
 an inactive hidden tab, captures its outbound recipe URL, closes the tab, and
 waits before visiting the next pin (see Recovery and throttling for the
 pacing). WordPress fetches the outbound site, extracts Recipe JSON-LD, creates
@@ -34,7 +34,7 @@ the candidate, and imports its schema image without contacting Pinterest.
 
 ### 3. Import reviews and photos
 
-Choose **Import next 10** under Import reviews & photos when convenient. Only
+Choose **Import next 25** under Import reviews & photos when convenient. Only
 pins with a completed recipe stage are eligible. The extension revisits the pin
 page, expands owner-authored comments and replies, uploads their photos, and
 finalizes the review stage. Recipe pages are not fetched again.
@@ -58,12 +58,10 @@ continues, up to 3 attempts per pin; a pin that keeps failing is excluded from
 further automatic retries and flagged in the popup as needing manual review in
 WordPress instead of being retried indefinitely.
 
-The inter-pin wait is a randomized 25-55 seconds rather than a fixed interval,
-and every 4-6 pins it takes a longer 2-4 minute break, so a batch's pacing
-doesn't look like a fixed-interval script. A whole board's backlog is also
-capped at 50 pins per day across the recipe and review stages combined; once
-that cap is reached the batch pauses itself and resumes automatically the
-next day.
+The inter-pin wait is a randomized 15-30 seconds rather than a fixed interval,
+and every 10-12 pins it takes a longer 60-90 second break. The long-break counter
+continues across manual batches. There is no daily pin cap; each batch stops
+after at most 25 pins, and you start the next batch when ready.
 
 Pinterest login/checkpoint pages, an owner-account mismatch, authentication
 errors, or HTTP 429 throttling pause the whole batch. The extension now tells

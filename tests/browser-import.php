@@ -49,7 +49,10 @@ function __(string $value, string $domain = ''): string
 function wp_insert_post(array $post, bool $return_error = false): int
 {
     unset($return_error);
-    $id = ($post['post_type'] ?? '') === 'pinterest_import' ? 84 : 42;
+    $id = ($post['post_type'] ?? '') === 'pinterest_import' ? ($GLOBALS['nextPinImportId'] ?? 84) : 42;
+    if (($post['post_type'] ?? '') === 'pinterest_import') {
+        $GLOBALS['nextPinImportId'] = $id + 1;
+    }
     $GLOBALS['insertedPosts'][$id] = $post;
     return $id;
 }
@@ -69,21 +72,29 @@ function get_post_meta(int $post_id, string $key, bool $single = false): mixed
 /** @param array<string,mixed> $args @return list<int> */
 function get_posts(array $args): array
 {
-    if (($args['post_type'] ?? '') !== 'pinterest_import' || ! isset($GLOBALS['insertedPosts'][84])) {
+    if (($args['post_type'] ?? '') !== 'pinterest_import') {
         return [];
     }
-    $matches = static function (array $clause): bool {
-        return (string) get_post_meta(84, (string) ($clause['key'] ?? ''), true) === (string) ($clause['value'] ?? '');
+    $matches = static function (int $id, array $clause): bool {
+        return (string) get_post_meta($id, (string) ($clause['key'] ?? ''), true) === (string) ($clause['value'] ?? '');
     };
-    if (isset($args['meta_key']) && ! $matches(['key' => $args['meta_key'], 'value' => $args['meta_value'] ?? ''])) {
-        return [];
-    }
-    foreach ((array) ($args['meta_query'] ?? []) as $clause) {
-        if (is_array($clause) && ! $matches($clause)) {
-            return [];
+    $ids = [];
+    foreach ($GLOBALS['insertedPosts'] ?? [] as $id => $post) {
+        if (($post['post_type'] ?? '') !== 'pinterest_import') {
+            continue;
         }
+        if (isset($args['meta_key']) && ! $matches($id, ['key' => $args['meta_key'], 'value' => $args['meta_value'] ?? ''])) {
+            continue;
+        }
+        foreach ((array) ($args['meta_query'] ?? []) as $clause) {
+            if (is_array($clause) && ! $matches($id, $clause)) {
+                continue 2;
+            }
+        }
+        $ids[] = $id;
     }
-    return [84];
+    $limit = (int) ($args['posts_per_page'] ?? -1);
+    return $limit > 0 ? array_slice($ids, 0, $limit) : $ids;
 }
 
 function has_post_thumbnail(int $post_id): bool
@@ -118,6 +129,30 @@ final class WP_Error
     public function __construct(public string $code, public string $message = '')
     {
     }
+}
+
+final class WP_REST_Request
+{
+    public function __construct(private array $params = [])
+    {
+    }
+
+    public function get_param(string $name): mixed
+    {
+        return $this->params[$name] ?? null;
+    }
+}
+
+final class WP_REST_Response
+{
+    public function __construct(public array $data)
+    {
+    }
+}
+
+function sanitize_key(string $value): string
+{
+    return strtolower(preg_replace('/[^a-z0-9_\-]/', '', $value));
 }
 
 function is_wp_error(mixed $value): bool
@@ -221,6 +256,25 @@ assertSameValue(1, $pinStore->counts()['recipe']['complete'], 'Recipe completion
 assertSameValue(1, $pinStore->counts()['reviews']['pending'], 'Recipe completion must make reviews eligible.');
 $pinStore->fail('123', 'reviews', 'Try later');
 assertSameValue('123', $pinStore->queue('reviews', 'retry')[0]['pin_id'] ?? '', 'Failed reviews must be available only from the retry queue.');
+
+for ($pinId = 200; $pinId < 226; $pinId++) {
+    $pinStore->capture([
+        'pin_id' => (string) $pinId,
+        'pin_url' => 'https://www.pinterest.com/pin/' . $pinId . '/',
+    ], $owner);
+}
+assertSameValue(25, count($pinStore->queue('recipe', 'pending')), 'The default recipe queue must contain up to 25 pins.');
+assertSameValue(25, count($pinStore->queue('recipe', 'pending', 100)), 'Recipe queue requests must be capped at 25 pins.');
+assertSameValue(7, count($pinStore->queue('recipe', 'pending', 7)), 'Smaller recipe queue requests must still work.');
+$recipeQueue = $browserImport->queue(new WP_REST_Request(['stage' => 'recipe', 'mode' => 'pending']));
+assertSameValue(25, count($recipeQueue->data['pins']), 'The recipe REST queue must return 25 pins.');
+
+for ($pinId = 200; $pinId < 226; $pinId++) {
+    $pinStore->completeRecipe((string) $pinId, 42, 'https://example.com/soup');
+}
+assertSameValue(25, count($pinStore->queue('reviews', 'pending')), 'The default review queue must contain up to 25 pins.');
+$reviewQueue = $browserImport->queue(new WP_REST_Request(['stage' => 'reviews', 'mode' => 'pending']));
+assertSameValue(25, count($reviewQueue->data['pins']), 'The review REST queue must return 25 pins.');
 
 $reviewMeta = new ReviewMeta();
 $reviewMeta->registerMeta();

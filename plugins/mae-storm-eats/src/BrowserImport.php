@@ -133,7 +133,7 @@ final class BrowserImport implements ServiceProviderInterface
         if (! in_array($stage, ['recipe', 'reviews'], true) || ! in_array($mode, ['pending', 'retry', 'refresh'], true)) {
             return new WP_Error('invalid_queue', 'stage and mode must identify a supported queue.', ['status' => 400]);
         }
-        return new WP_REST_Response(['pins' => (new PinImportStore())->queue($stage, $mode, 10)]);
+        return new WP_REST_Response(['pins' => (new PinImportStore())->queue($stage, $mode, 25)]);
     }
 
     public function resolve(WP_REST_Request $request): WP_REST_Response|WP_Error
