@@ -9,7 +9,6 @@ the same release tag.
 
 ### Performance Improvements
 
-* **import:** speed up Pinterest batches ([4850b71](https://github.com/drewnorman/mae-storm-eats/commit/4850b71515c791585bcf5d3c5bab489f7320b83c))
 * **import:** speed up Pinterest batches ([9e3423c](https://github.com/drewnorman/mae-storm-eats/commit/9e3423c8428bc07ce58570930d07e4f1ea489892))
 
 ## [0.3.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.0...v0.3.1) (2026-10-27)
