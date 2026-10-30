@@ -4,6 +4,66 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.4.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.2...v0.4.0) (2026-10-30)
+
+
+### Features
+
+* **access:** manage frontend password in WordPress ([2320b78](https://github.com/drewnorman/mae-storm-eats/commit/2320b787d2785e977d01759a92efde4737a66b6d))
+* **access:** manage frontend password in WordPress ([b950231](https://github.com/drewnorman/mae-storm-eats/commit/b9502319f4ab86a70223d5255b7b8696e52dddb5))
+* **admin:** add browser import status and review filters ([c76bf12](https://github.com/drewnorman/mae-storm-eats/commit/c76bf1250d6aa5238964864003c0627810c7b68e))
+* **admin:** add recipe review metadata UI ([3e241f3](https://github.com/drewnorman/mae-storm-eats/commit/3e241f3abe396c1d6038bf4bd47eb8a51ab757d6))
+* **admin:** add structured recipe review editors ([22c1653](https://github.com/drewnorman/mae-storm-eats/commit/22c16533d50e6cbb9b1052839babf86081356d04))
+* **auth:** add private recipe access gate ([11c6a9b](https://github.com/drewnorman/mae-storm-eats/commit/11c6a9b8db5dee5deb0fcf2bb4cc3ff34fc89577))
+* **extension:** add resumable Firefox board collector ([14587ea](https://github.com/drewnorman/mae-storm-eats/commit/14587ea8583eadf437eaf9ebe8961a2096637ae9))
+* **extension:** harden Pinterest import recovery ([fe6dd94](https://github.com/drewnorman/mae-storm-eats/commit/fe6dd944394a5160512b2cc5f83aaedb771e9590))
+* **import:** add recipe candidate persistence ([dab4fb7](https://github.com/drewnorman/mae-storm-eats/commit/dab4fb74c6d3ee96f42f1d4c7fcb923daeedd78b))
+* **import:** add restricted browser import service contract ([d166acd](https://github.com/drewnorman/mae-storm-eats/commit/d166acdaf3b34764edd7bf25e6507bfd86f4c93a))
+* **import:** backfill recipe metadata and featured images ([c95bee3](https://github.com/drewnorman/mae-storm-eats/commit/c95bee34d51ec4f9efaa17114d095a9a17bc2ba5))
+* **import:** connect Firefox collection to recipe review ([a4ba526](https://github.com/drewnorman/mae-storm-eats/commit/a4ba52676e80712edadd321dc3b09ae1aea5732e))
+* **import:** extract schema.org recipes from protected sources ([183f93d](https://github.com/drewnorman/mae-storm-eats/commit/183f93d07734097dc9d81cf3d93ded9fa3c8d62c))
+* **import:** reconcile owner reviews and local media ([a681047](https://github.com/drewnorman/mae-storm-eats/commit/a681047f7fc3c7704f51c7d997928229287d3b84))
+* **ops:** add production launch automation ([bd6b6f7](https://github.com/drewnorman/mae-storm-eats/commit/bd6b6f755dea5567c1114e6f16e274c72f2ccb57))
+* **plugin:** add recipes plugin data model ([99b5890](https://github.com/drewnorman/mae-storm-eats/commit/99b58905a5a5710975c8196e8cdddbcd0123debf))
+* **release:** add production artifact handoff ([2f55719](https://github.com/drewnorman/mae-storm-eats/commit/2f55719162afee6d6ba39bd263bcd2121d0097e7))
+* **theme:** add Timber recipe theme ([98552bc](https://github.com/drewnorman/mae-storm-eats/commit/98552bc5f5acae8a40cf6d14bfddcd4bb40e0dd2))
+* **theme:** build private recipe browsing views ([1d4e206](https://github.com/drewnorman/mae-storm-eats/commit/1d4e20645a1fcc1d0cebd5457f281b621d342d66))
+* **theme:** polish private recipe browsing experience ([380459a](https://github.com/drewnorman/mae-storm-eats/commit/380459a6fdcc04545478ba93c2deac73f26f18db))
+
+
+### Bug Fixes
+
+* **build:** include theme templates in image asset compilation ([b768343](https://github.com/drewnorman/mae-storm-eats/commit/b7683430957357b6094318985ebadae48fecb931))
+* **build:** load plugin classes in production image ([d4b548d](https://github.com/drewnorman/mae-storm-eats/commit/d4b548d5698e746207ff7f652dd42ca3c4b25a3b))
+* **ci:** accept release-generated manifest formatting ([abb6603](https://github.com/drewnorman/mae-storm-eats/commit/abb66034d4fcfa7f47ddd36c4d1738d8feb5b7c8))
+* **ci:** publish release assets from release workflow ([d62341f](https://github.com/drewnorman/mae-storm-eats/commit/d62341f5ae947968165d34139ce4b0bed77b1a7a))
+* **ci:** validate release output and boundary checks ([ae844d1](https://github.com/drewnorman/mae-storm-eats/commit/ae844d1e4e8f3bd029b99c401dfe38a78fa65c8d))
+* **ci:** validate release tag without ripgrep ([c6fbdad](https://github.com/drewnorman/mae-storm-eats/commit/c6fbdad5ebcaf15b63372e27c11406bc33d73f09))
+* **dev:** execute and verify WordPress boot scripts ([960eaa9](https://github.com/drewnorman/mae-storm-eats/commit/960eaa92e449105be09a27012129c6b34bb0d62f))
+* **extension:** preserve blocked import context ([f16e493](https://github.com/drewnorman/mae-storm-eats/commit/f16e493206796af19f3519154593decc5fe4caa7))
+* **infra:** load Cloudflare token from ignored env ([2c5083a](https://github.com/drewnorman/mae-storm-eats/commit/2c5083a3e2877f3c726fae411edd360219ea8401))
+* **infra:** load Cloudflare token from ignored env ([5a5e7d8](https://github.com/drewnorman/mae-storm-eats/commit/5a5e7d8aa0aa2f4515df73db2b5fd06c21e74fb4))
+* **ops:** align backup schedule with monitoring window ([44c4d29](https://github.com/drewnorman/mae-storm-eats/commit/44c4d29edd107b0a6de3663aa6b9c02550338411))
+* **ops:** align production scripts with deployed release ([deb253e](https://github.com/drewnorman/mae-storm-eats/commit/deb253eebbec05ad0a467d69f7dd99355b7f6044))
+* **ops:** align production scripts with deployed release ([694341b](https://github.com/drewnorman/mae-storm-eats/commit/694341bef66f1e907f5414b2b9dedb48e4aea35d))
+* **ops:** initialize pretty WordPress permalinks ([d751fce](https://github.com/drewnorman/mae-storm-eats/commit/d751fcefd734bbfccba791d72722155e67d71616))
+* **ops:** make first production launch recoverable ([bd96b30](https://github.com/drewnorman/mae-storm-eats/commit/bd96b305990a0633d7fda632e52630642d798fa3))
+* **ops:** normalize production site title during initialization ([21a0bda](https://github.com/drewnorman/mae-storm-eats/commit/21a0bda96e4b3c3f6cd5b9a5836dfe8e2269aeb0))
+* **ops:** reconcile importer email during initialization ([e73a475](https://github.com/drewnorman/mae-storm-eats/commit/e73a475f23bda5ef892546ab7d211c99643a6bef))
+* **ops:** restrict production deployment through IAP ([661049a](https://github.com/drewnorman/mae-storm-eats/commit/661049a28805e015f354d06945d0c4eb9e1bd85a))
+* **ops:** verify origin REST response during deployment ([2fceea7](https://github.com/drewnorman/mae-storm-eats/commit/2fceea71e81af4549e6facfb1c47000cbf585024))
+* **ops:** wait for WordPress container readiness ([cd4c0d1](https://github.com/drewnorman/mae-storm-eats/commit/cd4c0d176e9959b05ff6375034003f3f53ba9db9))
+* **theme:** center private password screen ([09f0591](https://github.com/drewnorman/mae-storm-eats/commit/09f0591b7f317026deda24e44e7520a6f79643bc))
+* **theme:** center private password screen ([bea14c5](https://github.com/drewnorman/mae-storm-eats/commit/bea14c5545bb28a055ec3309c9f24f9541461a23))
+* **theme:** simplify private access screen ([ea5a499](https://github.com/drewnorman/mae-storm-eats/commit/ea5a4995ea62cfeec3fb3b7058971148f1d6612e))
+* **theme:** simplify private access screen ([3fde618](https://github.com/drewnorman/mae-storm-eats/commit/3fde618a161546591e4a6cf4af173f158bf4e195))
+
+
+### Performance Improvements
+
+* **import:** speed up Pinterest batches ([4850b71](https://github.com/drewnorman/mae-storm-eats/commit/4850b71515c791585bcf5d3c5bab489f7320b83c))
+* **import:** speed up Pinterest batches ([9e3423c](https://github.com/drewnorman/mae-storm-eats/commit/9e3423c8428bc07ce58570930d07e4f1ea489892))
+
 ## [0.3.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.1...v0.3.2) (2026-10-30)
 
 
