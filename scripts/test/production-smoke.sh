@@ -8,6 +8,10 @@ mkdir -p "${temporary}/bin"
 
 cat >"${temporary}/bin/podman" <<'MOCK'
 #!/usr/bin/env bash
+printf 'podman %s\n' "$*" >>"${MAE_STORM_EATS_SMOKE_TEST_LOG}"
+if [[ "${MAE_STORM_EATS_SMOKE_TEST_UPLOAD_MODE:-ok}" == fail && "${1:-}" == exec && "${2:-}" == --user ]]; then
+    exit 1
+fi
 exit 0
 MOCK
 cat >"${temporary}/bin/curl" <<'MOCK'
@@ -47,10 +51,17 @@ export MAE_STORM_EATS_SMOKE_TEST_LOG="${temporary}/calls.log"
 "${repo_root}/scripts/production/smoke.sh" >"${temporary}/success.log"
 grep -Fq 'Production smoke checks passed.' "${temporary}/success.log"
 test "$(grep -Fc -- '--resolve eats.maestorm.com:443:127.0.0.1' "${temporary}/calls.log")" -eq 3
+grep -Fq 'podman exec --user www-data mae-storm-eats sh -eu -c' "${temporary}/calls.log"
+
+if MAE_STORM_EATS_SMOKE_TEST_UPLOAD_MODE=fail "${repo_root}/scripts/production/smoke.sh" >"${temporary}/upload-failure.log" 2>&1; then
+    echo 'Smoke accepted an unwritable WordPress uploads directory.' >&2
+    exit 1
+fi
+grep -Fq 'cannot write to the current month uploads directory' "${temporary}/upload-failure.log"
 
 if MAE_STORM_EATS_SMOKE_TEST_REST_MODE=html "${repo_root}/scripts/production/smoke.sh" >"${temporary}/failure.log" 2>&1; then
     echo 'Smoke accepted a 401 HTML page in place of the protected REST JSON error.' >&2
     exit 1
 fi
 grep -Fq 'did not return its JSON access error' "${temporary}/failure.log"
-echo 'Origin HTTPS and protected REST smoke checks passed.'
+echo 'Origin HTTPS, uploads, and protected REST smoke checks passed.'

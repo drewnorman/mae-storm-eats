@@ -7,14 +7,14 @@
     {% if total_time %}
       <div class="recipe-meta__item">
         <dt class="sr-only">Total time</dt>
-        <img class="recipe-meta__time-icon" src="{{ theme.link }}/assets/src/images/time.svg" alt="">
+        <img class="recipe-meta__time-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/time.svg" alt="">
         <dd>{{ total_time }} min</dd>
       </div>
     {% endif %}
     {% if recipe_yield %}
       <div class="recipe-meta__item">
         <dt class="sr-only">Recipe yield</dt>
-        <img class="recipe-meta__servings-icon" src="{{ theme.link }}/assets/src/images/servings.svg" alt="">
+        <img class="recipe-meta__servings-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/servings.svg" alt="">
         <dd>{{ displayed_yield }}</dd>
       </div>
     {% endif %}

@@ -21,6 +21,7 @@ check:
   @scripts/test/browser-import.sh
   @scripts/test/php-syntax.sh
   @scripts/test/timber-boundary.sh
+  @php scripts/test/theme-icon-urls.php
   @scripts/test/image-pins.sh
   @scripts/test/production-contract.sh
   @corepack yarn fmt:check
