@@ -4,7 +4,9 @@ FROM docker.io/library/node:24.7.0-bookworm-slim@sha256:7cffa1b5307fcd0089c55ad6
 WORKDIR /src
 COPY package.json yarn.lock .yarnrc.yml* ./
 COPY themes/mae-storm-eats themes/mae-storm-eats
-COPY tailwind.config.js postcss.config.js tsconfig.json ./
+COPY tailwind.config.ts tsconfig.json tsconfig.extension.json ./
+COPY extension extension
+COPY scripts/compile-extension.sh scripts/compile-extension.sh
 RUN corepack enable && corepack yarn install --immutable && corepack yarn build \
     && grep -Fq '.site-header' themes/mae-storm-eats/assets/dist/app.css \
     && grep -Fq '.brand-field' themes/mae-storm-eats/assets/dist/app.css \

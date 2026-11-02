@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
+// The VM fixtures deliberately emulate only the browser methods each scenario uses.
+type VmFixture = Record<string, any>;
+type HarnessOptions = {
+  tabs?: VmFixture;
+  alarms?: VmFixture;
+  fetchImpl?: (url: string) => Promise<any>;
+};
+
 const manifest = JSON.parse(readFileSync("extension/manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
 assert.ok(manifest.browser_specific_settings.gecko.id);
@@ -66,16 +74,17 @@ assert.match(collector, /comments_complete/);
 assert.match(collector, /ownerMatches/);
 
 const background = readFileSync("extension/background.js", "utf8");
-assert.match(background, /CHECKPOINT_VERSION = 5/);
-assert.match(background, /BATCH_SIZE = 25/);
-assert.match(background, /PIN_DELAY_MIN_MS = 15000/);
-assert.match(background, /PIN_DELAY_MAX_MS = 30000/);
-assert.match(background, /LONG_PAUSE_EVERY_MIN = 10/);
-assert.match(background, /LONG_PAUSE_EVERY_MAX = 12/);
-assert.match(background, /LONG_PAUSE_MIN_MS = 60000/);
-assert.match(background, /LONG_PAUSE_MAX_MS = 90000/);
+const backgroundSource = readFileSync("extension/src/background.ts", "utf8");
+assert.match(backgroundSource, /CHECKPOINT_VERSION = 5/);
+assert.match(backgroundSource, /BATCH_SIZE = 25/);
+assert.match(backgroundSource, /PIN_DELAY_MIN_MS = 15000/);
+assert.match(backgroundSource, /PIN_DELAY_MAX_MS = 30000/);
+assert.match(backgroundSource, /LONG_PAUSE_EVERY_MIN = 10/);
+assert.match(backgroundSource, /LONG_PAUSE_EVERY_MAX = 12/);
+assert.match(backgroundSource, /LONG_PAUSE_MIN_MS = 60000/);
+assert.match(backgroundSource, /LONG_PAUSE_MAX_MS = 90000/);
 assert.doesNotMatch(
-  background,
+  backgroundSource,
   /DAILY_PIN_CAP|dailyCapReached|recordPinProcessed/,
 );
 assert.match(background, /MAX_PIN_RETRIES = 3/);
@@ -89,8 +98,12 @@ assert.match(background, /owner_mismatch/);
 assert.doesNotMatch(background, /https:\/\/recipes\.maestorm\.com/);
 assert.doesNotMatch(background, /cookie|access.?token|oauth/i);
 
-function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
-  const state = {
+function backgroundHarness({
+  tabs = {},
+  fetchImpl,
+  alarms = {},
+}: HarnessOptions = {}) {
+  const state: VmFixture = {
     settings: {
       wordpressHost: "http://wordpress.localhost",
       username: "importer",
@@ -98,16 +111,16 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
     },
     run: { version: 5, windowId: 4 },
   };
-  const context = {
+  const context: VmFixture = {
     URL,
     Date,
     Error,
     FormData,
     AbortController,
-    btoa: (value) => Buffer.from(value).toString("base64"),
+    btoa: (value: any) => Buffer.from(value).toString("base64"),
     fetch:
       fetchImpl ||
-      (async (url) => ({
+      (async (url: any) => ({
         ok: true,
         json: async () =>
           url.includes("/recipe")
@@ -119,9 +132,9 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
     browser: {
       storage: {
         local: {
-          get: async (key) =>
+          get: async (key: any) =>
             typeof key === "string" ? { [key]: state[key] } : { ...state },
-          set: async (patch) => Object.assign(state, patch),
+          set: async (patch: any) => Object.assign(state, patch),
         },
         onChanged: { addListener: () => {} },
       },
@@ -136,7 +149,7 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
       },
       runtime: {
         sendMessage: async () => {},
-        getURL: (path) => path,
+        getURL: (path: any) => path,
         onMessage: { addListener: () => {} },
         onStartup: { addListener: () => {} },
       },
@@ -146,19 +159,19 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
         onRemoved: { addListener: () => {} },
       },
       tabs: {
-        create: async (options) => ({
+        create: async (options: any) => ({
           id: 10,
           windowId: options.windowId,
           status: "complete",
           url: options.url,
         }),
-        get: async (id) => ({
+        get: async (id: any) => ({
           id,
           windowId: 4,
           status: "complete",
           url: "https://www.pinterest.com/pin/789/",
         }),
-        sendMessage: async (_id, message) =>
+        sendMessage: async (_id: any, message: any) =>
           message.type === "ping"
             ? { ready: true }
             : {
@@ -168,7 +181,7 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
         remove: async () => {},
         hide: async () => {},
         show: async () => {},
-        update: async (id, options) => ({
+        update: async (id: any, options: any) => ({
           id,
           windowId: 4,
           status: options.url ? "loading" : "complete",
@@ -201,15 +214,15 @@ function backgroundHarness({ tabs = {}, fetchImpl, alarms = {} } = {}) {
   return { state, hooks: context.hooks };
 }
 
-let createdOptions;
-let hidden;
+let createdOptions: any;
+let hidden: any;
 const directHarness = backgroundHarness({
   tabs: {
-    create: async (options) => {
+    create: async (options: any) => {
       createdOptions = options;
       return { id: 10, windowId: 4, status: "complete", url: options.url };
     },
-    hide: async (id) => {
+    hide: async (id: any) => {
       hidden = id;
     },
   },
@@ -229,7 +242,7 @@ const boardTabs = new Map([
 ]);
 const boardHarness = backgroundHarness({
   tabs: {
-    get: async (id) => {
+    get: async (id: any) => {
       if (!boardTabs.has(id)) throw new Error("Missing tab");
       return boardTabs.get(id);
     },
@@ -271,12 +284,12 @@ const challengeTab = {
 const challengeHarness = backgroundHarness({
   tabs: {
     create: async () => challengeTab,
-    get: async (id) => {
+    get: async (id: any) => {
       if (id !== challengeTab.id || challengeRemoved)
         throw new Error("Missing tab");
       return challengeTab;
     },
-    sendMessage: async (_id, message) => {
+    sendMessage: async (_id: any, message: any) => {
       if (message.type === "ping") return { ready: true };
       if (challengeBlocked)
         return {
@@ -293,7 +306,7 @@ const challengeHarness = backgroundHarness({
     show: async () => {
       challengeShown = true;
     },
-    update: async (_id, options) => {
+    update: async (_id: any, options: any) => {
       if (options.active) challengeActivated = true;
       if (options.url) challengeTab.url = options.url;
       return challengeTab;
@@ -331,7 +344,7 @@ assert.equal(challengeHarness.state.run.challengeTabId, null);
 let replacementCreated = false;
 const closedChallengeHarness = backgroundHarness({
   tabs: {
-    get: async (id) => {
+    get: async (id: any) => {
       if (id === 31)
         return {
           id: 31,
@@ -341,7 +354,7 @@ const closedChallengeHarness = backgroundHarness({
         };
       throw new Error("Missing tab");
     },
-    create: async (options) => {
+    create: async (options: any) => {
       replacementCreated = true;
       return {
         id: 31,
@@ -361,7 +374,7 @@ assert.equal(replacementResult.status, "complete");
 
 let migratedCapture = false;
 const migrationHarness = backgroundHarness({
-  fetchImpl: async (url) => {
+  fetchImpl: async (url: any) => {
     if (url.includes("/pins")) migratedCapture = true;
     return { ok: true, json: async () => ({}) };
   },
@@ -399,7 +412,7 @@ assert.equal(
 let resumedPinUrl = "";
 const resumeHarness = backgroundHarness({
   tabs: {
-    create: async (options) => {
+    create: async (options: any) => {
       resumedPinUrl = options.url;
       return { id: 10, windowId: 4, status: "complete", url: options.url };
     },
@@ -428,7 +441,7 @@ assert.equal(resumeHarness.state.run.queue.length, 25);
 let oldCapAlarmCleared = false;
 const oldCapHarness = backgroundHarness({
   alarms: {
-    clear: async (name) => {
+    clear: async (name: any) => {
       oldCapAlarmCleared = name === "mae-storm-eats-import-resume";
     },
   },
@@ -449,10 +462,10 @@ assert.equal(oldCapCheckpoint.queue.length, 1);
 assert.equal(oldCapCheckpoint.resumeNotBefore, null);
 assert.equal(oldCapAlarmCleared, true);
 
-let resumeAlarm = null;
+let resumeAlarm: any = null;
 const pauseHarness = backgroundHarness({
   alarms: {
-    create: async (name, info) => {
+    create: async (name: any, info: any) => {
       resumeAlarm = { name, when: info.when };
     },
     clear: async () => {
@@ -506,7 +519,7 @@ assert.equal(longDelay.pinsSinceLongPause, 0);
 for (const stage of ["recipe", "reviews"]) {
   let queueFetches = 0;
   const batchHarness = backgroundHarness({
-    fetchImpl: async (url) => ({
+    fetchImpl: async (url: any) => ({
       ok: true,
       json: async () => {
         if (url.includes("/queue?")) {
@@ -522,7 +535,7 @@ for (const stage of ["recipe", "reviews"]) {
       },
     }),
     tabs: {
-      sendMessage: async (_id, message) =>
+      sendMessage: async (_id: any, message: any) =>
         message.type === "ping"
           ? { ready: true }
           : {
@@ -563,21 +576,22 @@ assert.ok((await retryHarness.hooks.exhaustedPinIds()).has("789"));
 await retryHarness.hooks.clearRetryCount("789");
 assert.ok(!(await retryHarness.hooks.exhaustedPinIds()).has("789"));
 
-const collectorListeners = [];
+const collectorListeners: Array<(message: VmFixture) => Promise<VmFixture>> =
+  [];
 let scrolls = 0;
-const collectorContext = {
+const collectorContext: VmFixture = {
   URL,
   location: { href: "https://www.pinterest.com/mae/recipes/" },
-  setTimeout: (callback) => {
+  setTimeout: (callback: any) => {
     callback();
     return 1;
   },
-  getComputedStyle: (node) =>
+  getComputedStyle: (node: any) =>
     node.style || { display: "block", visibility: "visible", opacity: "1" },
   document: {
     documentElement: { scrollHeight: 1000 },
     querySelector: () => null,
-    querySelectorAll: (selector) =>
+    querySelectorAll: (selector: any) =>
       selector === 'a[href*="/pin/"]'
         ? [
             { href: "https://www.pinterest.com/pin/123/" },
@@ -594,7 +608,7 @@ const collectorContext = {
     storage: { local: { get: async () => ({ run: {} }) } },
     runtime: {
       onMessage: {
-        addListener: (listener) => collectorListeners.push(listener),
+        addListener: (listener: any) => collectorListeners.push(listener),
       },
       sendMessage: async () => {},
     },
@@ -606,7 +620,7 @@ vm.runInNewContext(
 );
 const discovery = await collectorListeners[0]({ type: "discover" });
 assert.deepEqual(
-  Array.from(discovery.pins, (pin) => pin.pin_id),
+  Array.from(discovery.pins, (pin: any) => pin.pin_id),
   ["123", "456"],
 );
 assert.ok(scrolls >= 15);
@@ -625,7 +639,7 @@ collectorContext.document = {
   title: "",
   body: visibleNode("please complete this captcha to continue"),
   querySelector: () => null,
-  querySelectorAll: (selector) =>
+  querySelectorAll: (selector: any) =>
     selector === "[role='dialog'], form"
       ? [visibleNode("please complete this captcha to continue")]
       : [],
@@ -643,7 +657,7 @@ collectorContext.document = {
   title: "Challenge recipes",
   body: visibleNode("A recipe article that mentions captcha technology"),
   querySelector: () => null,
-  querySelectorAll: (selector) =>
+  querySelectorAll: (selector: any) =>
     selector === "iframe"
       ? [
           {
@@ -660,7 +674,7 @@ collectorContext.document = {
   title: "",
   body: visibleNode(""),
   querySelector: () => null,
-  querySelectorAll: (selector) =>
+  querySelectorAll: (selector: any) =>
     selector === "iframe"
       ? [
           {
@@ -679,7 +693,7 @@ assert.equal(
 collectorContext.document = {
   title: "",
   body: visibleNode(""),
-  querySelector: (selector) =>
+  querySelector: (selector: any) =>
     selector === "input[type='password']" ? {} : null,
   querySelectorAll: () => [],
 };
@@ -701,8 +715,8 @@ collectorContext.document = {
 };
 assert.equal(collectorContext.testDetectBlock().blocked, false);
 
-const popupElements = new Map();
-const popupElement = (selector) => {
+const popupElements = new Map<string, VmFixture>();
+const popupElement = (selector: string): VmFixture => {
   if (!popupElements.has(selector))
     popupElements.set(selector, {
       hidden: false,
@@ -713,16 +727,16 @@ const popupElement = (selector) => {
       max: 0,
       value: 0,
       addEventListener: () => {},
-      appendChild(child) {
+      appendChild(child: any) {
         this.children.push(child);
       },
-      removeAttribute(name) {
+      removeAttribute(name: any) {
         if (name === "value") this.value = undefined;
       },
     });
-  return popupElements.get(selector);
+  return popupElements.get(selector)!;
 };
-const popupContext = {
+const popupContext: VmFixture = {
   Object,
   Date,
   setInterval: () => 1,

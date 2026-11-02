@@ -50,7 +50,11 @@ git archive HEAD | tar -x -C "${stage_dir}"
 for required_file in \
     "${stage_dir}/vendor/autoload.php" \
     "${stage_dir}/themes/mae-storm-eats/assets/dist/app.css" \
-    "${stage_dir}/themes/mae-storm-eats/assets/dist/app.js"; do
+    "${stage_dir}/themes/mae-storm-eats/assets/dist/app.js" \
+    "${stage_dir}/extension/background.js" \
+    "${stage_dir}/extension/collector.js" \
+    "${stage_dir}/extension/connection.js" \
+    "${stage_dir}/extension/popup.js"; do
     if [ ! -s "${required_file}" ]; then
         echo "Artifact staging is missing ${required_file#${stage_dir}/}." >&2
         exit 1

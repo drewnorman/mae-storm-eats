@@ -1,3 +1,7 @@
 # Release Please rewrites these files with its own stable formatting.
 extension/manifest.json
 CHANGELOG.md
+extension/background.js
+extension/collector.js
+extension/connection.js
+extension/popup.js

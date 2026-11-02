@@ -1,6 +1,6 @@
 # Tests
 
-This directory contains direct PHP and JavaScript tests. Executable integration
+This directory contains direct PHP and TypeScript tests. Executable integration
 and smoke-test entrypoints live in `scripts/test`.
 
 `just check` runs strict static and application checks. `just test-dev-boot`

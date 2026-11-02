@@ -1,11 +1,8 @@
-const containerQueries = require("@tailwindcss/container-queries");
-const fluidTailwind = require("fluid-tailwind");
+import type { Config } from "tailwindcss";
+import containerQueries from "@tailwindcss/container-queries";
+import fluid, { extract } from "fluid-tailwind";
 
-const fluid = fluidTailwind.default || fluidTailwind;
-const extract = fluidTailwind.extract;
-
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: {
     files: [
       "./themes/mae-storm-eats/**/*.php",
@@ -38,4 +35,4 @@ module.exports = {
     },
   },
   plugins: [fluid, containerQueries],
-};
+} satisfies Config;
