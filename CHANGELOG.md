@@ -10,7 +10,6 @@ the same release tag.
 ### Bug Fixes
 
 * **production:** repair and verify uploads permissions ([72c491b](https://github.com/drewnorman/mae-storm-eats/commit/72c491b70853d978b1c5437fcb6a0c0eb0ce88e3))
-* restore recipe icons and uploads ([4f82a67](https://github.com/drewnorman/mae-storm-eats/commit/4f82a67d327d5c8757d8be0fb4f7af3f8523bb23))
 * **theme:** restore recipe metadata icon URLs ([164d0a5](https://github.com/drewnorman/mae-storm-eats/commit/164d0a580a214ee0d544543bd088afa2b7243f06))
 
 ## [0.3.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.1...v0.3.2) (2026-10-30)
