@@ -28,6 +28,11 @@ jobs:
           docker run --rm --entrypoint php mae-storm-eats-composer-check \
             -r 'require "/src/vendor/autoload.php"; exit(class_exists("MaeStorm\\Eats\\Activation") ? 0 : 1);'
 
+      - name: Check production uploads repair
+        run: |
+          docker build -f Containerfile -t mae-storm-eats-upload-check .
+          scripts/test/production-image-entrypoint.sh mae-storm-eats-upload-check
+
       - name: Run checks
         run: nix develop --command just check
 

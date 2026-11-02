@@ -17,6 +17,16 @@ trap 'rm -f -- "${response}"' EXIT
 "${wp[@]}" theme is-active mae-storm-eats
 "${wp[@]}" eval 'if (!class_exists(\Timber\Timber::class)) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
 
+if ! podman exec --user www-data mae-storm-eats sh -eu -c '
+    upload_dir="/var/www/html/wp-content/uploads/$(date +%Y/%m)"
+    mkdir -p -- "${upload_dir}"
+    probe="$(mktemp "${upload_dir}/.mae-storm-eats-write-check.XXXXXXXX")"
+    rm -f -- "${probe}"
+'; then
+    echo "WordPress cannot write to the current month uploads directory." >&2
+    exit 1
+fi
+
 "${origin[@]}" --fail --location "${url}/wp-login.php" >/dev/null
 
 status="$("${origin[@]}" --location --output "${response}" --write-out '%{http_code}' "${url}/")"
