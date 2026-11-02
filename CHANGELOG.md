@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.3.3](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.2...v0.3.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **production:** repair and verify uploads permissions ([72c491b](https://github.com/drewnorman/mae-storm-eats/commit/72c491b70853d978b1c5437fcb6a0c0eb0ce88e3))
+* **theme:** restore recipe metadata icon URLs ([164d0a5](https://github.com/drewnorman/mae-storm-eats/commit/164d0a580a214ee0d544543bd088afa2b7243f06))
+
 ## [0.3.2](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.1...v0.3.2) (2026-10-30)
 
 
