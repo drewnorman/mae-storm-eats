@@ -22,6 +22,10 @@ First-party WordPress plugin for the private eats.maestorm.com recipe app.
 - Adds a Gallery box to each Recipe editor for ordered Media Library photos and
   MP4, WebM, or Ogg videos. The current featured image always leads the gallery;
   additional items are stored separately from imported image references.
+- Converts new HEIC and HEIF Media Library uploads to WebP before creating the
+  attachment. The source is removed after successful conversion; unsupported or
+  damaged images return an upload error. The WordPress image runtime needs
+  Imagick with HEIC decoding and WebP encoding.
 - Protects frontend access through a shared-password gate.
 - Lets administrators rotate the shared frontend password under **Settings →
   Private Access**, storing only a hash in WordPress.
