@@ -20,6 +20,7 @@ check:
   just check-editorconfig
   @scripts/test/browser-import.sh
   @php tests/recipe-gallery.php
+  @php tests/heic-upload-converter.php
   @scripts/test/php-syntax.sh
   @scripts/test/timber-boundary.sh
   @php scripts/test/theme-icon-urls.php
