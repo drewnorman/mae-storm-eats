@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.7.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.6.0...v0.7.0) (2026-11-03)
+
+
+### Features
+
+* increase media upload limit to 10 MB ([d796830](https://github.com/drewnorman/mae-storm-eats/commit/d79683018b63bd803d094ef8b558ecc814bfcfd1))
+
 ## [0.6.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.5.0...v0.6.0) (2026-11-03)
 
 
