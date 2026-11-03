@@ -49,6 +49,7 @@ services:
       - ./plugins/mae-storm-eats:/var/www/html/wp-content/plugins/mae-storm-eats:Z
       - ./themes/mae-storm-eats:/var/www/html/wp-content/themes/mae-storm-eats:Z
       - ./config/dev/uploads:/var/www/html/wp-content/uploads:Z
+      - ./config/php/media-uploads.ini:/usr/local/etc/php/conf.d/zz-mae-storm-eats-media-uploads.ini:ro,Z
 
 networks:
   default:

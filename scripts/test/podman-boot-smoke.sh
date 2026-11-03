@@ -34,6 +34,14 @@ verification="$(cat "${script_dir}/verify-wordpress.php" | "${compose[@]}" exec 
 grep -Fq 'WordPress development stack verification passed.' <<< "${verification}"
 echo "${verification}"
 
+"${compose[@]}" exec -T wordpress php -r '
+    require "/var/www/html/wp-load.php";
+    if (wp_max_upload_size() !== 10 * MB_IN_BYTES || ini_get("post_max_size") !== "12M") {
+        fwrite(STDERR, "Local media upload limit is not 10 MB.\n");
+        exit(1);
+    }
+'
+
 ingredient_check="$(cat "${script_dir}/ingredient-filter.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
 grep -Fq 'Ingredient index integration checks passed.' <<< "${ingredient_check}"
 echo "${ingredient_check}"
