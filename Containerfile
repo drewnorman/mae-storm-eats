@@ -30,6 +30,7 @@ COPY plugins/mae-storm-eats /usr/src/wordpress/wp-content/plugins/mae-storm-eats
 COPY themes/mae-storm-eats /usr/src/wordpress/wp-content/themes/mae-storm-eats
 COPY --from=assets /src/themes/mae-storm-eats/assets/dist /usr/src/wordpress/wp-content/themes/mae-storm-eats/assets/dist
 COPY config/production/wp-config-extra.php /usr/local/etc/mae-storm-eats/wp-config-extra.php
+COPY config/php/media-uploads.ini /usr/local/etc/php/conf.d/zz-mae-storm-eats-media-uploads.ini
 COPY scripts/production/image-entrypoint.sh /usr/local/bin/mae-storm-eats-image-entrypoint
 COPY scripts/production/initialize.sh /usr/local/bin/mae-storm-eats-initialize
 RUN chmod 0755 /usr/local/bin/mae-storm-eats-image-entrypoint \
