@@ -1,139 +1,227 @@
+"use strict";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let activeRun = false;
 let activeVerification = null;
 let activeController = null;
 let activePinTabId = null;
-
 const IMPORT_ALARM = "mae-storm-eats-import-pump";
 const RESUME_ALARM = "mae-storm-eats-import-resume";
 const CHECKPOINT_VERSION = 5;
 const BATCH_SIZE = 25;
-const PIN_DELAY_MIN_MS = 15000;
-const PIN_DELAY_MAX_MS = 30000;
+const PIN_DELAY_MIN_MS = 15e3;
+const PIN_DELAY_MAX_MS = 3e4;
 const LONG_PAUSE_EVERY_MIN = 10;
 const LONG_PAUSE_EVERY_MAX = 12;
-const LONG_PAUSE_MIN_MS = 60000;
-const LONG_PAUSE_MAX_MS = 90000;
-const JSON_TIMEOUT_MS = 20000;
-const PHOTO_TIMEOUT_MS = 30000;
-const MEDIA_TIMEOUT_MS = 60000;
-const BACKOFF_TIERS_MS = [10 * 60 * 1000, 30 * 60 * 1000, 2 * 60 * 60 * 1000];
-const DAY_MS = 24 * 60 * 60 * 1000;
+const LONG_PAUSE_MIN_MS = 6e4;
+const LONG_PAUSE_MAX_MS = 9e4;
+const JSON_TIMEOUT_MS = 2e4;
+const PHOTO_TIMEOUT_MS = 3e4;
+const MEDIA_TIMEOUT_MS = 6e4;
+const BACKOFF_TIERS_MS = [10 * 60 * 1e3, 30 * 60 * 1e3, 2 * 60 * 60 * 1e3];
+const DAY_MS = 24 * 60 * 60 * 1e3;
 const MAX_PIN_RETRIES = 3;
 const PAUSE_HISTORY_LIMIT = 10;
 const FAILURE_LOG_LIMIT = 25;
-
-const permissionMessage =
-  "Firefox permission is required to connect to this WordPress site. Choose Connect to try again.";
-
+const permissionMessage = "Firefox permission is required to connect to this WordPress site. Choose Connect to try again.";
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function asImportError(value) {
+  return value instanceof Error ? value : new Error(String(value));
+}
+async function storedValue(key) {
+  const stored = await browser.storage.local.get(key);
+  return stored[key];
+}
+async function readRun() {
+  const value = await storedValue("run");
+  if (!isRecord(value)) return {};
+  if (value.version !== void 0 && typeof value.version !== "number")
+    return {};
+  if (value.status !== void 0 && typeof value.status !== "string") return {};
+  if (value.queue !== void 0 && (!Array.isArray(value.queue) || !value.queue.every(
+    (pin) => isRecord(pin) && (typeof pin.pin_id === "string" || typeof pin.pin_id === "number")
+  )))
+    return {};
+  return value;
+}
+async function readConnection() {
+  const value = await storedValue("connection");
+  if (!isRecord(value)) return {};
+  if (value.origin !== void 0 && typeof value.origin !== "string") return {};
+  if (value.username !== void 0 && typeof value.username !== "string")
+    return {};
+  return value;
+}
+async function readSettings() {
+  const value = await storedValue("settings");
+  if (!isRecord(value)) return {};
+  if (value.wordpressHost !== void 0 && typeof value.wordpressHost !== "string")
+    return {};
+  if (value.username !== void 0 && typeof value.username !== "string")
+    return {};
+  if (value.applicationPassword !== void 0 && typeof value.applicationPassword !== "string")
+    return {};
+  return value;
+}
+function isPin(value) {
+  return isRecord(value) && (typeof value.pin_id === "string" || typeof value.pin_id === "number") && typeof value.pin_url === "string";
+}
+function isBlockKind(value) {
+  return value === "captcha" || value === "login" || value === "rate_limited" || value === "service" || value === "unknown";
+}
+function collectorResult(value) {
+  if (!isRecord(value))
+    throw new Error("Pinterest collector returned an invalid response.");
+  if (value.blocked !== void 0 && typeof value.blocked !== "boolean")
+    throw new Error("Pinterest collector returned an invalid block state.");
+  if (value.blockKind !== void 0 && !isBlockKind(value.blockKind))
+    throw new Error("Pinterest collector returned an invalid block kind.");
+  if (value.pins !== void 0 && (!Array.isArray(value.pins) || !value.pins.every(isPin)))
+    throw new Error("Pinterest collector returned invalid pins.");
+  if (value.comments !== void 0 && !Array.isArray(value.comments))
+    throw new Error("Pinterest collector returned invalid comments.");
+  if (value.comments_complete !== void 0 && typeof value.comments_complete !== "boolean")
+    throw new Error(
+      "Pinterest collector returned an invalid completion state."
+    );
+  return value;
+}
+function isExtensionMessage(value) {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  switch (value.type) {
+    case "prepareVerification":
+      return isRecord(value.settings) && typeof value.settings.wordpressHost === "string" && typeof value.settings.username === "string" && typeof value.settings.applicationPassword === "string";
+    case "discoveryProgress":
+      return typeof value.discovered === "number" && typeof value.stable === "number";
+    case "capture":
+    case "resume":
+      return typeof value.tabId === "number";
+    case "startStage":
+      return typeof value.tabId === "number" && (value.stage === "recipe" || value.stage === "reviews") && (value.mode === void 0 || value.mode === "pending" || value.mode === "retry" || value.mode === "refresh");
+    case "connectionStatus":
+    case "permissionDenied":
+    case "status":
+    case "pause":
+      return true;
+    default:
+      return false;
+  }
+}
+async function readRetryCounts() {
+  const value = await storedValue("retryCounts");
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([, count]) => typeof count === "number" && Number.isFinite(count)
+    )
+  );
+}
+async function readPauseHistory() {
+  const value = await storedValue("pauseHistory");
+  return Array.isArray(value) ? value.filter(
+    (entry) => isRecord(entry) && typeof entry.at === "string" && typeof entry.reason === "string" && typeof entry.blockKind === "string" && typeof entry.blockEvidence === "string"
+  ) : [];
+}
+async function readFailureLog() {
+  const value = await storedValue("failureLog");
+  return Array.isArray(value) ? value.filter(
+    (entry) => isRecord(entry) && typeof entry.at === "string" && (typeof entry.pinId === "string" || typeof entry.pinId === "number") && (entry.stage === "recipe" || entry.stage === "reviews") && typeof entry.reason === "string"
+  ) : [];
+}
 function randomBetween(min, max) {
   return Math.round(min + Math.random() * (max - min));
 }
-
 function nextPinDelay(run) {
   const sincePause = (run.pinsSinceLongPause || 0) + 1;
   const threshold = randomBetween(LONG_PAUSE_EVERY_MIN, LONG_PAUSE_EVERY_MAX);
   if (sincePause >= threshold)
     return {
       delayMs: randomBetween(LONG_PAUSE_MIN_MS, LONG_PAUSE_MAX_MS),
-      pinsSinceLongPause: 0,
+      pinsSinceLongPause: 0
     };
   return {
     delayMs: randomBetween(PIN_DELAY_MIN_MS, PIN_DELAY_MAX_MS),
-    pinsSinceLongPause: sincePause,
+    pinsSinceLongPause: sincePause
   };
 }
-
 async function recordPause(reason, blockKind, blockEvidence = "") {
-  const { pauseHistory = [] } = await browser.storage.local.get("pauseHistory");
+  const pauseHistory = await readPauseHistory();
   const entry = {
-    at: new Date().toISOString(),
+    at: (/* @__PURE__ */ new Date()).toISOString(),
     reason,
     blockKind: blockKind || "",
-    blockEvidence,
+    blockEvidence
   };
   const next = [entry, ...pauseHistory].slice(0, PAUSE_HISTORY_LIMIT);
   await browser.storage.local.set({ pauseHistory: next });
   return next;
 }
-
 async function recordFailure(pinId, stage, reason) {
-  const { failureLog = [] } = await browser.storage.local.get("failureLog");
-  const entry = { pinId, stage, reason, at: new Date().toISOString() };
+  const failureLog = await readFailureLog();
+  const entry = { pinId, stage, reason, at: (/* @__PURE__ */ new Date()).toISOString() };
   const next = [
     entry,
     ...failureLog.filter(
-      (item) => !(item.pinId === pinId && item.stage === stage),
-    ),
+      (item) => !(item.pinId === pinId && item.stage === stage)
+    )
   ].slice(0, FAILURE_LOG_LIMIT);
   await browser.storage.local.set({ failureLog: next });
   return next;
 }
-
 async function clearFailure(pinId, stage) {
-  const { failureLog = [] } = await browser.storage.local.get("failureLog");
+  const failureLog = await readFailureLog();
   const next = failureLog.filter(
-    (item) => !(item.pinId === pinId && item.stage === stage),
+    (item) => !(item.pinId === pinId && item.stage === stage)
   );
   if (next.length !== failureLog.length)
     await browser.storage.local.set({ failureLog: next });
 }
-
 async function incrementRetryCount(pinId) {
-  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  const retryCounts = await readRetryCounts();
   const next = { ...retryCounts, [pinId]: (retryCounts[pinId] || 0) + 1 };
   await browser.storage.local.set({ retryCounts: next });
   return next;
 }
-
 async function clearRetryCount(pinId) {
-  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  const retryCounts = await readRetryCounts();
   if (!(pinId in retryCounts)) return;
   const next = { ...retryCounts };
   delete next[pinId];
   await browser.storage.local.set({ retryCounts: next });
 }
-
 async function exhaustedPinIds() {
-  const { retryCounts = {} } = await browser.storage.local.get("retryCounts");
+  const retryCounts = await readRetryCounts();
   return new Set(
-    Object.entries(retryCounts)
-      .filter(([, count]) => count >= MAX_PIN_RETRIES)
-      .map(([pinId]) => pinId),
+    Object.entries(retryCounts).filter(([, count]) => count >= MAX_PIN_RETRIES).map(([pinId]) => pinId)
   );
 }
-
 function notify(title, message) {
-  browser.notifications
-    .create({
-      type: "basic",
-      iconUrl: browser.runtime.getURL("icons/mae-storm-eats.svg"),
-      title,
-      message,
-    })
-    .catch(() => {});
+  browser.notifications.create({
+    type: "basic",
+    iconUrl: browser.runtime.getURL("icons/mae-storm-eats.svg"),
+    title,
+    message
+  }).catch(() => {
+  });
 }
-
 function permissionOrigin(origin) {
   return `${origin}/*`;
 }
-
 async function setConnection(patch) {
-  const { connection = {} } = await browser.storage.local.get("connection");
-  const next = { ...connection, ...patch, updatedAt: new Date().toISOString() };
+  const connection = await readConnection();
+  const next = { ...connection, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
   await browser.storage.local.set({ connection: next });
-  browser.runtime
-    .sendMessage({ type: "connectionState", connection: next })
-    .catch(() => {});
+  browser.runtime.sendMessage({ type: "connectionState", connection: next }).catch(() => {
+  });
   return next;
 }
-
 async function performVerification(expected) {
   await setConnection({
     ...expected,
     state: "verifying",
-    message: "Verifying connection…",
-    verifiedAt: null,
+    message: "Verifying connection\u2026",
+    verifiedAt: null
   });
   try {
     const status = await api("/pinterest-imports/status");
@@ -143,31 +231,26 @@ async function performVerification(expected) {
       ...expected,
       state: "verified",
       message: "WordPress connection verified.",
-      verifiedAt: new Date().toISOString(),
+      verifiedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
   } catch (error) {
     return setConnection({
       ...expected,
       state: "failed",
-      message: connectionVerificationMessage(error),
-      verifiedAt: null,
+      message: connectionVerificationMessage(asImportError(error)),
+      verifiedAt: null
     });
   }
 }
-
 function connectionVerificationMessage(error) {
-  if (
-    ["invalid_username", "invalid_email", "incorrect_password"].includes(
-      error.code,
-    )
-  )
+  if (["invalid_username", "invalid_email", "incorrect_password"].includes(
+    error.code || ""
+  ))
     return "WordPress did not accept this username and Application Password.";
-  if (
-    [
-      "application_passwords_disabled",
-      "application_passwords_disabled_for_user",
-    ].includes(error.code)
-  )
+  if ([
+    "application_passwords_disabled",
+    "application_passwords_disabled_for_user"
+  ].includes(error.code || ""))
     return "Application Passwords are not available for this WordPress account. Check the site configuration and try again.";
   if (error.status === 401)
     return "WordPress received the request but did not authenticate it. Check that Application Password authentication is enabled for the import endpoint.";
@@ -179,9 +262,9 @@ function connectionVerificationMessage(error) {
     return `WordPress could not verify the connection (HTTP ${error.status}). Check the site and try again.`;
   return error.message || "Connection verification failed.";
 }
-
 function verifyConnection(expected) {
-  const key = `${expected.origin}\n${expected.username}`;
+  const key = `${expected.origin}
+${expected.username}`;
   if (activeVerification?.key === key) return activeVerification.promise;
   if (activeVerification)
     return activeVerification.promise.then(() => verifyConnection(expected));
@@ -191,58 +274,53 @@ function verifyConnection(expected) {
   activeVerification = { key, promise };
   return promise;
 }
-
 async function prepareVerification(settings) {
+  if (!settings.wordpressHost || !settings.username || !settings.applicationPassword)
+    throw new Error("WordPress service credentials are not configured.");
   await browser.storage.local.set({ settings });
   const expected = {
     origin: settings.wordpressHost,
-    username: settings.username,
+    username: settings.username
   };
   await setConnection({
     ...expected,
     state: "pending",
-    message: "Waiting for Firefox site permission…",
-    verifiedAt: null,
+    message: "Waiting for Firefox site permission\u2026",
+    verifiedAt: null
   });
-  if (
-    await browser.permissions.contains({
-      origins: [permissionOrigin(expected.origin)],
-    })
-  )
+  if (await browser.permissions.contains({
+    origins: [permissionOrigin(expected.origin)]
+  }))
     return verifyConnection(expected);
 }
-
 async function reconcileConnection() {
-  const { connection = {} } = await browser.storage.local.get("connection");
-  if (connection.state !== "pending" || !connection.origin) return connection;
-  if (
-    await browser.permissions.contains({
-      origins: [permissionOrigin(connection.origin)],
-    })
-  )
+  const connection = await readConnection();
+  if (connection.state !== "pending" || !connection.origin || !connection.username)
+    return connection;
+  if (await browser.permissions.contains({
+    origins: [permissionOrigin(connection.origin)]
+  }))
     return verifyConnection({
       origin: connection.origin,
-      username: connection.username,
+      username: connection.username
     });
   return setConnection({
     state: "failed",
     message: permissionMessage,
-    verifiedAt: null,
+    verifiedAt: null
   });
 }
-
 async function credentials() {
-  const { settings = {} } = await browser.storage.local.get("settings");
+  const settings = await readSettings();
   if (!settings.wordpressHost)
     throw new Error("WordPress site URL is not configured.");
   if (!settings.username || !settings.applicationPassword)
     throw new Error("WordPress service credentials are not configured.");
   return {
     ...settings,
-    authorization: `Basic ${btoa(`${settings.username}:${settings.applicationPassword}`)}`,
+    authorization: `Basic ${btoa(`${settings.username}:${settings.applicationPassword}`)}`
   };
 }
-
 async function timedFetch(url, options = {}, timeoutMs = JSON_TIMEOUT_MS) {
   const controller = new AbortController();
   activeController = controller;
@@ -252,12 +330,9 @@ async function timedFetch(url, options = {}, timeoutMs = JSON_TIMEOUT_MS) {
   } catch (error) {
     if (controller.signal.aborted) {
       const aborted = new Error(
-        controller.signal.reason === "pause"
-          ? "Import paused."
-          : `Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`,
+        controller.signal.reason === "pause" ? "Import paused." : `Request timed out after ${Math.round(timeoutMs / 1e3)} seconds.`
       );
-      aborted.failureKind =
-        controller.signal.reason === "pause" ? "paused" : "timeout";
+      aborted.failureKind = controller.signal.reason === "pause" ? "paused" : "timeout";
       throw aborted;
     }
     throw error;
@@ -266,7 +341,6 @@ async function timedFetch(url, options = {}, timeoutMs = JSON_TIMEOUT_MS) {
     if (activeController === controller) activeController = null;
   }
 }
-
 async function api(path, options = {}) {
   const auth = await credentials();
   let response;
@@ -278,55 +352,62 @@ async function api(path, options = {}) {
         credentials: "omit",
         headers: {
           Authorization: auth.authorization,
-          ...(options.body instanceof FormData
-            ? {}
-            : { "Content-Type": "application/json" }),
-          ...options.headers,
-        },
+          ...options.body instanceof FormData ? {} : { "Content-Type": "application/json" },
+          ...options.headers
+        }
       },
-      options.body instanceof FormData ? MEDIA_TIMEOUT_MS : JSON_TIMEOUT_MS,
+      options.body instanceof FormData ? MEDIA_TIMEOUT_MS : JSON_TIMEOUT_MS
     );
   } catch (cause) {
-    if (cause.failureKind) throw cause;
+    if (asImportError(cause).failureKind) throw cause;
     const error = new Error(
-      `Could not connect to ${auth.wordpressHost}. Check the URL and confirm WordPress is running.`,
+      `Could not connect to ${auth.wordpressHost}. Check the URL and confirm WordPress is running.`
     );
     error.failureKind = "connection";
     throw error;
   }
-  const body = await response.json().catch(() => ({}));
+  const raw = await response.json().catch(() => ({}));
+  const body = isRecord(raw) ? raw : {};
   if (!response.ok) {
     const error = new Error(
-      body.message || `WordPress returned ${response.status}`,
+      typeof body.message === "string" ? body.message : `WordPress returned ${response.status}`
     );
     error.status = response.status;
     error.code = typeof body.code === "string" ? body.code : "";
     throw error;
   }
+  if (body.pins !== void 0 && (!Array.isArray(body.pins) || !body.pins.every(isPin)))
+    throw new Error("WordPress returned an invalid pin queue.");
+  if (body.stages !== void 0 && !isRecord(body.stages))
+    throw new Error("WordPress returned invalid stage counts.");
+  if (body.status !== void 0 && typeof body.status !== "string")
+    throw new Error("WordPress returned an invalid status.");
+  if (body.authenticated !== void 0 && typeof body.authenticated !== "boolean")
+    throw new Error("WordPress returned an invalid authentication state.");
+  if (body.warnings !== void 0 && (!Array.isArray(body.warnings) || !body.warnings.every((warning) => typeof warning === "string")))
+    throw new Error("WordPress returned invalid warnings.");
   return body;
 }
-
 async function setRun(patch) {
-  const { run = {} } = await browser.storage.local.get("run");
-  const next = { ...run, ...patch, updatedAt: new Date().toISOString() };
+  const run = await readRun();
+  const next = { ...run, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
   await browser.storage.local.set({ run: next });
-  browser.runtime.sendMessage({ type: "progress", run: next }).catch(() => {});
+  browser.runtime.sendMessage({ type: "progress", run: next }).catch(() => {
+  });
   return next;
 }
-
 async function refreshInventory() {
-  const { run = {} } = await browser.storage.local.get("run");
+  const run = await readRun();
   if (Array.isArray(run.legacyPins) && run.legacyPins.length) {
     await api("/pinterest-imports/pins", {
       method: "POST",
-      body: JSON.stringify({ pins: run.legacyPins }),
+      body: JSON.stringify({ pins: run.legacyPins })
     });
     await setRun({ legacyPins: [] });
   }
   const status = await api("/pinterest-imports/status");
   return setRun({ inventory: status.stages || {} });
 }
-
 function normalizeBoardUrl(value) {
   const url = new URL(value);
   url.hash = "";
@@ -334,42 +415,39 @@ function normalizeBoardUrl(value) {
   url.pathname = `${url.pathname.replace(/\/+$/, "")}/`;
   return url.href;
 }
-
 async function boardBinding(tabId) {
   const tab = await browser.tabs.get(tabId);
-  if (!Number.isInteger(tab.id) || !Number.isInteger(tab.windowId))
+  if (typeof tab.id !== "number" || typeof tab.windowId !== "number")
     throw new Error("The Pinterest board tab is no longer available.");
-  if (!isPinterestPage(tab.url) || /\/pin\/\d+/.test(new URL(tab.url).pathname))
+  if (!tab.url || !isPinterestPage(tab.url) || /\/pin\/\d+/.test(new URL(tab.url).pathname))
     throw new Error("Open a Pinterest board before capturing pins.");
   return {
     boardUrl: normalizeBoardUrl(tab.url),
     boardTabId: tab.id,
-    windowId: tab.windowId,
+    windowId: tab.windowId
   };
 }
-
 function boardUrlMatches(tab, boardUrl) {
-  if (!tab || !isPinterestPage(tab.url)) return false;
+  if (!tab?.url || !isPinterestPage(tab.url)) return false;
   try {
     return normalizeBoardUrl(tab.url) === boardUrl;
   } catch {
     return false;
   }
 }
-
 async function resumeBoardTab(run, activeTabId) {
-  if (Number.isInteger(run.boardTabId)) {
+  if (typeof run.boardTabId === "number") {
     const saved = await browser.tabs.get(run.boardTabId).catch(() => null);
-    if (boardUrlMatches(saved, run.boardUrl)) return saved;
+    if (saved && boardUrlMatches(saved, run.boardUrl)) return saved;
   }
   const active = await browser.tabs.get(activeTabId).catch(() => null);
-  if (boardUrlMatches(active, run.boardUrl)) return active;
+  if (active && boardUrlMatches(active, run.boardUrl)) return active;
   throw new Error(
-    `Open the saved Pinterest board ${run.boardUrl || "from this capture"} in the active tab, then choose Resume.`,
+    `Open the saved Pinterest board ${run.boardUrl || "from this capture"} in the active tab, then choose Resume.`
   );
 }
-
 function isPinterestPage(url) {
+  if (!url) return false;
   try {
     const page = new URL(url);
     return page.protocol === "https:" && page.hostname === "www.pinterest.com";
@@ -377,15 +455,16 @@ function isPinterestPage(url) {
     return false;
   }
 }
-
 function collectorUnavailable(message) {
   const error = new Error(message);
   error.failureKind = "collector_unavailable";
   return error;
 }
-
-async function waitForTabReady(tab, timeoutMs = 30000) {
+async function waitForTabReady(tab, timeoutMs = 3e4) {
   if (tab.status === "complete" && isPinterestPage(tab.url)) return tab;
+  if (typeof tab.id !== "number")
+    throw collectorUnavailable("Pinterest tab is unavailable.");
+  const expectedTabId = tab.id;
   return new Promise((resolve, reject) => {
     let settled = false;
     const finish = (callback) => {
@@ -400,28 +479,24 @@ async function waitForTabReady(tab, timeoutMs = 30000) {
         finish(() => resolve(current));
     };
     const listener = (tabId, change, current) => {
-      if (tabId === tab.id && change.status === "complete") check(current);
+      if (tabId === expectedTabId && change.status === "complete")
+        check(current);
     };
     const timeout = setTimeout(
-      () =>
-        finish(() =>
-          reject(
-            collectorUnavailable(
-              "Pinterest pin page did not finish loading on an allowed URL.",
-            ),
-          ),
-        ),
-      timeoutMs,
+      () => finish(
+        () => reject(
+          collectorUnavailable(
+            "Pinterest pin page did not finish loading on an allowed URL."
+          )
+        )
+      ),
+      timeoutMs
     );
     browser.tabs.onUpdated.addListener(listener);
-    browser.tabs
-      .get(tab.id)
-      .then(check)
-      .catch((error) => finish(() => reject(error)));
+    browser.tabs.get(expectedTabId).then(check).catch((error) => finish(() => reject(error)));
   });
 }
-
-async function waitForCollector(tabId, timeoutMs = 10000, intervalMs = 250) {
+async function waitForCollector(tabId, timeoutMs = 1e4, intervalMs = 250) {
   const deadline = Date.now() + timeoutMs;
   let currentUrl = "";
   while (Date.now() < deadline) {
@@ -429,26 +504,26 @@ async function waitForCollector(tabId, timeoutMs = 10000, intervalMs = 250) {
     currentUrl = current.url || "";
     if (!isPinterestPage(currentUrl))
       throw collectorUnavailable(
-        `Pinterest redirected the pin tab to an unsupported URL: ${currentUrl || "unknown"}`,
+        `Pinterest redirected the pin tab to an unsupported URL: ${currentUrl || "unknown"}`
       );
     try {
       const response = await browser.tabs.sendMessage(tabId, { type: "ping" });
       if (response?.ready) return response;
-    } catch {}
+    } catch {
+    }
     await delay(intervalMs);
   }
   throw collectorUnavailable(
-    `Pinterest collector did not start for ${currentUrl || "the pin tab"}.`,
+    `Pinterest collector did not start for ${currentUrl || "the pin tab"}.`
   );
 }
-
 async function uploadPhotos(pin, result) {
   for (const comment of result.comments || []) {
     for (const photo of comment.photos || []) {
       const response = await timedFetch(
         photo.url,
         { credentials: "include" },
-        PHOTO_TIMEOUT_MS,
+        PHOTO_TIMEOUT_MS
       );
       if (!response.ok) throw new Error(`Photo returned ${response.status}`);
       const form = new FormData();
@@ -456,12 +531,11 @@ async function uploadPhotos(pin, result) {
       form.append("photo_id", photo.id);
       await api(
         `/pinterest-imports/${pin.pin_id}/comments/${encodeURIComponent(comment.id)}/media`,
-        { method: "POST", body: form },
+        { method: "POST", body: form }
       );
     }
   }
 }
-
 async function captureBoard(tabId) {
   if (activeRun) return;
   activeRun = true;
@@ -477,15 +551,17 @@ async function captureBoard(tabId) {
       completed: 0,
       failed: 0,
       error: "",
-      pauseRequested: false,
+      pauseRequested: false
     });
-    const discovery = await browser.tabs.sendMessage(tabId, {
-      type: "discover",
-    });
+    const discovery = collectorResult(
+      await browser.tabs.sendMessage(tabId, {
+        type: "discover"
+      })
+    );
     if (discovery.paused) return pauseRun("", { resetConsecutive: true });
     if (discovery.blocked) {
       const error = new Error(
-        discovery.reason || "Pinterest login or checkpoint detected.",
+        discovery.reason || "Pinterest login or checkpoint detected."
       );
       error.blockKind = discovery.blockKind || "unknown";
       error.blockEvidence = discovery.blockEvidence || "";
@@ -494,83 +570,80 @@ async function captureBoard(tabId) {
     }
     if (!Array.isArray(discovery.pins) || discovery.pins.length === 0)
       throw new Error(
-        "No Pinterest pins were discovered. Confirm this is a board page and its pins are visible.",
+        "No Pinterest pins were discovered. Confirm this is a board page and its pins are visible."
       );
     await api("/pinterest-imports/pins", {
       method: "POST",
       body: JSON.stringify({
         pins: discovery.pins,
-        owner: discovery.owner || {},
-      }),
+        owner: discovery.owner || {}
+      })
     });
     await setRun({
       status: "complete",
       phase: "complete",
       completed: discovery.pins.length,
       discovered: discovery.pins.length,
-      message: `${discovery.pins.length} pins captured.`,
+      message: `${discovery.pins.length} pins captured.`
     });
     notify(
       "Pinterest board captured",
-      `${discovery.pins.length} pin${discovery.pins.length === 1 ? "" : "s"} captured.`,
+      `${discovery.pins.length} pin${discovery.pins.length === 1 ? "" : "s"} captured.`
     );
     await refreshInventory();
   } catch (error) {
-    const blockKind = error.blockKind || null;
+    const failure = asImportError(error);
+    const blockKind = failure.blockKind || null;
     await pauseRun(
-      blockKind
-        ? pauseMessageFor(error, blockKind)
-        : error.message || "Pin capture paused unexpectedly.",
-      blockKind ? { blockKind, blockEvidence: error.blockEvidence || "" } : {},
+      blockKind ? pauseMessageFor(failure, blockKind) : failure.message || "Pin capture paused unexpectedly.",
+      blockKind ? { blockKind, blockEvidence: failure.blockEvidence || "" } : {}
     );
   } finally {
     activeRun = false;
   }
 }
-
 function globalFailure(error) {
-  return (
-    [401, 403, 404, 429].includes(error.status) ||
-    error.status >= 500 ||
-    ["owner_mismatch"].includes(error.code) ||
-    ["connection", "timeout"].includes(error.failureKind) ||
-    error.failureKind === "pinterest_blocked"
-  );
+  return [401, 403, 404, 429].includes(error.status || 0) || (error.status || 0) >= 500 || ["owner_mismatch"].includes(error.code || "") || ["connection", "timeout"].includes(error.failureKind || "") || error.failureKind === "pinterest_blocked";
 }
-
 async function resolveStagePin(pin, run) {
-  let tab;
+  let tab = null;
   let preserveTab = false;
   try {
-    if (Number.isInteger(run.challengeTabId))
+    if (typeof run.challengeTabId === "number")
       tab = await browser.tabs.get(run.challengeTabId).catch(() => null);
     if (tab && isPinterestPage(tab.url)) {
       const currentPinId = String(tab.url || "").match(/\/pin\/(\d+)/)?.[1];
-      if (currentPinId !== String(pin.pin_id))
+      if (currentPinId !== String(pin.pin_id) && typeof tab.id === "number")
         tab = await browser.tabs.update(tab.id, { url: pin.pin_url });
     } else {
       tab = await browser.tabs.create({
         url: pin.pin_url,
         windowId: run.windowId,
-        active: false,
+        active: false
       });
     }
-    activePinTabId = tab.id;
+    if (typeof tab.id !== "number")
+      throw collectorUnavailable("Pinterest pin tab is unavailable.");
+    const pinTabId = tab.id;
+    activePinTabId = pinTabId;
     await setRun({
       phase: "loading_pin",
-      tempTabId: tab.id,
-      currentPin: pin.pin_id,
+      tempTabId: pinTabId,
+      currentPin: pin.pin_id
     });
-    await browser.tabs.hide(tab.id).catch(() => {});
+    await browser.tabs.hide(pinTabId).catch(() => {
+    });
     await waitForTabReady(tab);
-    await waitForCollector(tab.id);
-    const result = await browser.tabs.sendMessage(tab.id, {
-      type: run.stage === "recipe" ? "resolveRecipe" : "resolveReviews",
-      pin,
-    });
+    await waitForCollector(pinTabId);
+    const result = collectorResult(
+      await browser.tabs.sendMessage(pinTabId, {
+        type: run.stage === "recipe" ? "resolveRecipe" : "resolveReviews",
+        pin
+      })
+    );
     if (result?.blocked) {
       const error = new Error(
-        result.reason || "Pinterest login or checkpoint detected.",
+        result.reason || "Pinterest login or checkpoint detected."
       );
       error.failureKind = "pinterest_blocked";
       error.blockKind = result.blockKind || "unknown";
@@ -578,79 +651,83 @@ async function resolveStagePin(pin, run) {
       if (error.blockKind === "captcha") {
         preserveTab = true;
         error.challengeContext = "stage";
-        error.challengeTabId = tab.id;
+        error.challengeTabId = pinTabId;
         await setRun({
-          challengeTabId: tab.id,
-          tempTabId: tab.id,
-          blockEvidence: error.blockEvidence,
+          challengeTabId: pinTabId,
+          tempTabId: pinTabId,
+          blockEvidence: error.blockEvidence
         });
-        await browser.tabs.show(tab.id).catch(() => {});
-        await browser.tabs.update(tab.id, { active: true }).catch(() => {});
-        await browser.windows
-          ?.update(tab.windowId, { focused: true })
-          .catch(() => {});
+        await browser.tabs.show(pinTabId).catch(() => {
+        });
+        await browser.tabs.update(pinTabId, { active: true }).catch(() => {
+        });
+        if (typeof tab.windowId === "number")
+          await browser.windows.update(tab.windowId, { focused: true }).catch(() => {
+          });
       }
       throw error;
     }
     if (run.stage === "recipe") {
       const response = await api(`/pinterest-imports/${pin.pin_id}/recipe`, {
         method: "POST",
-        body: JSON.stringify(result),
+        body: JSON.stringify(result)
       });
       return {
         status: response.status === "complete" ? "complete" : "failed",
-        error: response.warnings?.join(" ") || "",
+        error: response.warnings?.join(" ") || ""
       };
     }
     await api(`/pinterest-imports/${pin.pin_id}/reviews`, {
       method: "POST",
-      body: JSON.stringify(result),
+      body: JSON.stringify(result)
     });
     await uploadPhotos(pin, result);
     if (!result.comments_complete)
       throw new Error("Pinterest comments did not finish expanding.");
     await api(`/pinterest-imports/${pin.pin_id}/finalize`, {
       method: "POST",
-      body: JSON.stringify({ comments_complete: true }),
+      body: JSON.stringify({ comments_complete: true })
     });
     return { status: "complete", error: "" };
   } catch (error) {
-    const latest = (await browser.storage.local.get("run")).run || {};
+    const failure = asImportError(error);
+    const latest = await readRun();
     if (latest.pauseRequested) {
-      error.failureKind = "paused";
-      throw error;
+      failure.failureKind = "paused";
+      throw failure;
     }
-    if (error.failureKind === "paused" || globalFailure(error)) throw error;
+    if (failure.failureKind === "paused" || globalFailure(failure))
+      throw failure;
     await api(`/pinterest-imports/${pin.pin_id}/failure`, {
       method: "POST",
       body: JSON.stringify({
         stage: run.stage,
-        error: error.message || "Pin processing failed.",
-      }),
-    }).catch(() => {});
+        error: failure.message || "Pin processing failed."
+      })
+    }).catch(() => {
+    });
     return {
       status: "failed",
-      error: error.message || "Pin processing failed.",
+      error: failure.message || "Pin processing failed."
     };
   } finally {
     if (tab?.id && !preserveTab)
-      await browser.tabs.remove(tab.id).catch(() => {});
+      await browser.tabs.remove(tab.id).catch(() => {
+      });
     if (activePinTabId === tab?.id) activePinTabId = null;
     if (!preserveTab)
       await setRun({
         tempTabId: null,
         challengeTabId: null,
-        blockEvidence: null,
+        blockEvidence: null
       });
   }
 }
-
 async function schedulePump(delayMs = 0) {
   await browser.alarms.create(IMPORT_ALARM, {
-    when: Date.now() + Math.max(delayMs, 100),
+    when: Date.now() + Math.max(delayMs, 100)
   });
 }
-
 function pauseMessageFor(error, blockKind) {
   if (blockKind === "captcha") {
     if (error.challengeContext === "capture")
@@ -663,11 +740,10 @@ function pauseMessageFor(error, blockKind) {
     return error.message || "Pinterest showed a login or checkpoint page.";
   return error.message || "The stage paused unexpectedly.";
 }
-
 async function pauseRun(error = "", options = {}) {
   await browser.alarms.clear(IMPORT_ALARM);
   await browser.alarms.clear(RESUME_ALARM);
-  const { run: currentRun = {} } = await browser.storage.local.get("run");
+  const currentRun = await readRun();
   const blockKind = options.blockKind || null;
   let consecutiveBlocks = currentRun.consecutiveBlocks || 0;
   let resumeNotBefore = options.resumeAt || null;
@@ -683,8 +759,7 @@ async function pauseRun(error = "", options = {}) {
   const notable = Boolean(blockKind || options.resumeAt);
   const blockEvidence = options.blockEvidence || currentRun.blockEvidence || "";
   if (notable) await recordPause(error, blockKind, blockEvidence);
-  const preserveChallenge =
-    blockKind === "captcha" && Number.isInteger(currentRun.challengeTabId);
+  const preserveChallenge = blockKind === "captcha" && Number.isInteger(currentRun.challengeTabId);
   await setRun({
     status: "paused",
     phase: "paused",
@@ -697,19 +772,19 @@ async function pauseRun(error = "", options = {}) {
     blockKind,
     blockEvidence: blockKind ? blockEvidence : null,
     consecutiveBlocks,
-    resumeNotBefore,
+    resumeNotBefore
   });
   if (resumeNotBefore)
     await browser.alarms.create(RESUME_ALARM, {
-      when: new Date(resumeNotBefore).getTime(),
+      when: new Date(resumeNotBefore).getTime()
     });
   if (notable) notify("Pinterest import paused", error || "The batch paused.");
 }
-
 async function processQueue() {
-  const { run = {} } = await browser.storage.local.get("run");
+  const run = await readRun();
   if (run.pauseRequested) return pauseRun("", { resetConsecutive: true });
-  if (!Array.isArray(run.queue) || run.cursor >= run.queue.length) {
+  const currentCursor = run.cursor ?? 0;
+  if (!Array.isArray(run.queue) || currentCursor >= run.queue.length) {
     await browser.alarms.clear(IMPORT_ALARM);
     await setRun({
       status: "complete",
@@ -721,21 +796,24 @@ async function processQueue() {
       resumeNotBefore: null,
       blockKind: null,
       blockEvidence: null,
-      challengeTabId: null,
+      challengeTabId: null
     });
     notify(
       "Pinterest import complete",
-      `${run.completed || 0} completed${run.failed ? `, ${run.failed} failed` : ""}.`,
+      `${run.completed || 0} completed${run.failed ? `, ${run.failed} failed` : ""}.`
     );
     return refreshInventory();
   }
-  const pin = run.queue[run.cursor];
+  if (run.stage !== "recipe" && run.stage !== "reviews")
+    return pauseRun("Saved import stage is invalid.");
+  const pin = run.queue[currentCursor];
+  if (!isPin(pin)) return pauseRun("Saved pin is missing its Pinterest URL.");
   try {
     await setRun({
       status: "running",
       phase: "loading_pin",
       currentPin: pin.pin_id,
-      error: "",
+      error: ""
     });
     const outcome = await resolveStagePin(pin, run);
     if (outcome.status === "complete") {
@@ -745,10 +823,9 @@ async function processQueue() {
       await incrementRetryCount(pin.pin_id);
       await recordFailure(pin.pin_id, run.stage, outcome.error);
     }
-    const completed =
-      (run.completed || 0) + (outcome.status === "complete" ? 1 : 0);
+    const completed = (run.completed || 0) + (outcome.status === "complete" ? 1 : 0);
     const failed = (run.failed || 0) + (outcome.status === "failed" ? 1 : 0);
-    const cursor = run.cursor + 1;
+    const cursor = currentCursor + 1;
     if (cursor >= run.queue.length) {
       await setRun({
         cursor,
@@ -756,7 +833,7 @@ async function processQueue() {
         failed,
         consecutiveBlocks: 0,
         resumeNotBefore: null,
-        blockKind: null,
+        blockKind: null
       });
       return schedulePump(100);
     }
@@ -770,32 +847,29 @@ async function processQueue() {
       failed,
       currentPin: null,
       nextPinAt,
-      pinsSinceLongPause,
+      pinsSinceLongPause
     });
     return schedulePump(delayMs);
   } catch (error) {
-    if (error.failureKind === "paused")
+    const failure = asImportError(error);
+    if (failure.failureKind === "paused")
       return pauseRun("", { resetConsecutive: true });
-    const blockKind =
-      error.blockKind || (error.status === 429 ? "rate_limited" : "service");
-    return pauseRun(pauseMessageFor(error, blockKind), {
+    const blockKind = failure.blockKind || (failure.status === 429 ? "rate_limited" : "service");
+    return pauseRun(pauseMessageFor(failure, blockKind), {
       blockKind,
-      blockEvidence: error.blockEvidence || "",
+      blockEvidence: failure.blockEvidence || ""
     });
   }
 }
-
 async function startStage(stage, mode, tabId) {
   if (activeRun) return;
   activeRun = true;
   try {
     const tab = await browser.tabs.get(tabId);
     const response = await api(
-      `/pinterest-imports/queue?stage=${encodeURIComponent(stage)}&mode=${encodeURIComponent(mode)}`,
+      `/pinterest-imports/queue?stage=${encodeURIComponent(stage)}&mode=${encodeURIComponent(mode)}`
     );
-    let queue = Array.isArray(response.pins)
-      ? response.pins.slice(0, BATCH_SIZE)
-      : [];
+    let queue = Array.isArray(response.pins) ? response.pins.slice(0, BATCH_SIZE) : [];
     let manualReviewExcluded = 0;
     if (mode === "retry") {
       const exhausted = await exhaustedPinIds();
@@ -822,39 +896,35 @@ async function startStage(stage, mode, tabId) {
       nextPinAt: null,
       pauseRequested: false,
       manualReviewExcluded,
-      error: queue.length
-        ? ""
-        : manualReviewExcluded
-          ? `No eligible pins in this queue. ${manualReviewExcluded} need manual review after repeated failures.`
-          : "No eligible pins in this queue.",
+      error: queue.length ? "" : manualReviewExcluded ? `No eligible pins in this queue. ${manualReviewExcluded} need manual review after repeated failures.` : "No eligible pins in this queue."
     });
     if (queue.length) await processQueue();
     else await refreshInventory();
   } catch (error) {
-    await pauseRun(error.message || "The stage could not start.");
+    await pauseRun(
+      asImportError(error).message || "The stage could not start."
+    );
   } finally {
     activeRun = false;
   }
 }
-
 async function resumeRun(tabId) {
   if (activeRun) return;
   const pending = await migrateCheckpoint();
-  if (
-    pending.resumeNotBefore &&
-    Date.now() < new Date(pending.resumeNotBefore).getTime()
-  )
+  if (pending.resumeNotBefore && Date.now() < new Date(pending.resumeNotBefore).getTime())
     return;
   activeRun = true;
   try {
-    const { run = {} } = await browser.storage.local.get("run");
+    const run = await readRun();
     if (run.kind === "capture") {
       const boardTab = await resumeBoardTab(run, tabId);
+      if (typeof boardTab.id !== "number")
+        throw new Error("The Pinterest board tab is no longer available.");
       activeRun = false;
       return captureBoard(boardTab.id);
     }
     let tab = null;
-    if (Number.isInteger(run.challengeTabId))
+    if (typeof run.challengeTabId === "number")
       tab = await browser.tabs.get(run.challengeTabId).catch(() => null);
     if (!tab) tab = await browser.tabs.get(tabId);
     await setRun({
@@ -862,25 +932,23 @@ async function resumeRun(tabId) {
       status: "running",
       phase: "queued",
       pauseRequested: false,
-      error: "",
+      error: ""
     });
     await processQueue();
   } catch (error) {
-    await pauseRun(error.message || "The stage could not resume.");
+    await pauseRun(
+      asImportError(error).message || "The stage could not resume."
+    );
   } finally {
     activeRun = false;
   }
 }
-
 async function autoResume() {
   if (activeRun) return;
-  const { run = {} } = await browser.storage.local.get("run");
+  const run = await readRun();
   if (run.status !== "paused" || run.kind !== "stage") return;
   if (run.blockKind === "captcha") return;
-  if (
-    run.resumeNotBefore &&
-    Date.now() < new Date(run.resumeNotBefore).getTime()
-  )
+  if (run.resumeNotBefore && Date.now() < new Date(run.resumeNotBefore).getTime())
     return;
   activeRun = true;
   try {
@@ -888,32 +956,27 @@ async function autoResume() {
       status: "running",
       phase: "queued",
       pauseRequested: false,
-      error: "",
+      error: ""
     });
     notify(
       "Pinterest import resumed",
-      "Resumed automatically after the cooldown elapsed.",
+      "Resumed automatically after the cooldown elapsed."
     );
     await processQueue();
   } catch (error) {
-    await pauseRun(error.message || "Automatic resume failed.");
+    await pauseRun(asImportError(error).message || "Automatic resume failed.");
   } finally {
     activeRun = false;
   }
 }
-
 async function migrateCheckpoint() {
-  const { run = {} } = await browser.storage.local.get("run");
+  const run = await readRun();
   if (run.version === CHECKPOINT_VERSION) {
-    if (
-      run.kind === "stage" &&
-      run.status === "paused" &&
-      /^Daily import cap of 50 pins reached today\./.test(run.error || "")
-    ) {
+    if (run.kind === "stage" && run.status === "paused" && /^Daily import cap of 50 pins reached today\./.test(run.error || "")) {
       await browser.alarms.clear(RESUME_ALARM);
       return setRun({
         resumeNotBefore: null,
-        error: "Daily import cap removed. Choose Resume to continue.",
+        error: "Daily import cap removed. Choose Resume to continue."
       });
     }
     return run;
@@ -922,21 +985,20 @@ async function migrateCheckpoint() {
     try {
       await api("/pinterest-imports/pins", {
         method: "POST",
-        body: JSON.stringify({ pins: run.pins }),
+        body: JSON.stringify({ pins: run.pins })
       });
     } catch {
-      const migrated = {
+      const migrated2 = {
         version: CHECKPOINT_VERSION,
         kind: "idle",
         status: "paused",
         phase: "paused",
         legacyPins: run.pins,
         inventory: {},
-        error:
-          "Connect to WordPress to finish moving the previous pin list into the staged importer.",
+        error: "Connect to WordPress to finish moving the previous pin list into the staged importer."
       };
-      await browser.storage.local.set({ run: migrated });
-      return migrated;
+      await browser.storage.local.set({ run: migrated2 });
+      return migrated2;
     }
   }
   const migrated = {
@@ -945,18 +1007,15 @@ async function migrateCheckpoint() {
     status: "ready",
     phase: "ready",
     inventory: {},
-    message: run.version
-      ? "Previous captured pins were moved to the staged importer."
-      : "",
+    message: run.version ? "Previous captured pins were moved to the staged importer." : ""
   };
   await browser.storage.local.set({ run: migrated });
   return migrated;
 }
-
 async function wakeWorker() {
   if (activeRun) return;
   const run = await migrateCheckpoint();
-  if (!["running", "waiting"].includes(run.status) || run.kind !== "stage")
+  if (!["running", "waiting"].includes(run.status || "") || run.kind !== "stage")
     return;
   activeRun = true;
   try {
@@ -965,29 +1024,23 @@ async function wakeWorker() {
     activeRun = false;
   }
 }
-
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === IMPORT_ALARM) return wakeWorker();
   if (alarm.name === RESUME_ALARM) return autoResume();
 });
 browser.runtime.onStartup.addListener(async () => {
   const run = await migrateCheckpoint();
-  if (["running", "waiting", "capturing"].includes(run.status)) {
+  if (["running", "waiting", "capturing"].includes(run.status || "")) {
     await pauseRun("Firefox restarted. Resume the staged import when ready.");
     return;
   }
-  if (
-    run.status === "paused" &&
-    run.kind === "stage" &&
-    run.blockKind !== "captcha" &&
-    run.resumeNotBefore
-  )
+  if (run.status === "paused" && run.kind === "stage" && run.blockKind !== "captcha" && run.resumeNotBefore)
     await browser.alarms.create(RESUME_ALARM, {
-      when: new Date(run.resumeNotBefore).getTime(),
+      when: new Date(run.resumeNotBefore).getTime()
     });
 });
-
 browser.runtime.onMessage.addListener(async (message) => {
+  if (!isExtensionMessage(message)) return;
   if (message.type === "prepareVerification")
     return prepareVerification(message.settings);
   if (message.type === "connectionStatus") return reconcileConnection();
@@ -995,18 +1048,18 @@ browser.runtime.onMessage.addListener(async (message) => {
     return setConnection({
       state: "failed",
       message: permissionMessage,
-      verifiedAt: null,
+      verifiedAt: null
     });
   if (message.type === "status") {
     await migrateCheckpoint();
     return refreshInventory();
   }
   if (message.type === "discoveryProgress") {
-    const { run = {} } = await browser.storage.local.get("run");
+    const run = await readRun();
     if (run.status === "capturing")
       return setRun({
         discovered: message.discovered,
-        discoveryStable: message.stable,
+        discoveryStable: message.stable
       });
   }
   if (message.type === "capture") return captureBoard(message.tabId);
@@ -1014,40 +1067,32 @@ browser.runtime.onMessage.addListener(async (message) => {
     return startStage(message.stage, message.mode || "pending", message.tabId);
   if (message.type === "resume") return resumeRun(message.tabId);
   if (message.type === "pause") {
-    const { run = {} } = await browser.storage.local.get("run");
+    const run = await readRun();
     await setRun({ pauseRequested: true, status: "pause_requested" });
     activeController?.abort("pause");
     if (activePinTabId) {
-      await browser.tabs.remove(activePinTabId).catch(() => {});
+      await browser.tabs.remove(activePinTabId).catch(() => {
+      });
       activePinTabId = null;
     }
-    if (["waiting", "retry_wait"].includes(run.status))
+    if (["waiting", "retry_wait"].includes(run.status || ""))
       return pauseRun("", { resetConsecutive: true });
   }
 });
-
 browser.permissions.onAdded.addListener(async (permissions) => {
-  const { connection = {} } = await browser.storage.local.get("connection");
-  if (
-    connection.origin &&
-    permissions.origins?.includes(permissionOrigin(connection.origin))
-  )
+  const connection = await readConnection();
+  if (connection.origin && connection.username && permissions.origins?.includes(permissionOrigin(connection.origin)))
     await verifyConnection({
       origin: connection.origin,
-      username: connection.username,
+      username: connection.username
     });
 });
 browser.permissions.onRemoved.addListener(async (permissions) => {
-  const { connection = {} } = await browser.storage.local.get("connection");
-  if (
-    connection.state === "verified" &&
-    connection.origin &&
-    permissions.origins?.includes(permissionOrigin(connection.origin))
-  )
+  const connection = await readConnection();
+  if (connection.state === "verified" && connection.origin && permissions.origins?.includes(permissionOrigin(connection.origin)))
     await setConnection({
       state: "failed",
-      message:
-        "Firefox site permission was removed. Edit the connection to grant it again.",
-      verifiedAt: null,
+      message: "Firefox site permission was removed. Edit the connection to grant it again.",
+      verifiedAt: null
     });
 });

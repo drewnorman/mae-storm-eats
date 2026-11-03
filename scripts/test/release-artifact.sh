@@ -31,6 +31,11 @@ for required_path in \
     mae-storm-eats/vendor/timber/timber/src/Timber.php \
     mae-storm-eats/themes/mae-storm-eats/assets/dist/app.css \
     mae-storm-eats/themes/mae-storm-eats/assets/dist/app.js \
+    mae-storm-eats/extension/manifest.json \
+    mae-storm-eats/extension/background.js \
+    mae-storm-eats/extension/collector.js \
+    mae-storm-eats/extension/connection.js \
+    mae-storm-eats/extension/popup.js \
     mae-storm-eats/plugins/mae-storm-eats/mae-storm-eats.php \
     mae-storm-eats/composer.lock \
     mae-storm-eats/yarn.lock; do

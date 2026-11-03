@@ -77,6 +77,12 @@ change the tag and digest together in `compose.yaml`, then run `just check`.
 Pinterest imports are performed from Firefox inside the owner's existing
 Pinterest session. See [docs/browser-import.md](docs/browser-import.md).
 
+The Firefox extension is authored in `extension/src/*.ts`. Run
+`corepack yarn build:extension` after editing it; this regenerates the four
+checked-in `extension/*.js` scripts. Commit both source and generated scripts
+so `extension/manifest.json` works directly from a release tag. `just check`
+verifies that the generated scripts are current.
+
 ## Plugin And Theme Contract
 
 The plugin and theme ship together in the app artifact but keep separate
