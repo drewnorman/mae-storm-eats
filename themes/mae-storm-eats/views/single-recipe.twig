@@ -20,8 +20,32 @@
         </p>
       </div>
 
-      {% if post.thumbnail %}
-        <img class="recipe-hero__image" src="{{ post.thumbnail.src('large') }}" alt="">
+      {% if recipe_gallery|length == 1 and recipe_gallery[0].kind == 'image' %}
+        <img class="recipe-hero__image" src="{{ recipe_gallery[0].url }}" alt="{{ recipe_gallery[0].alt }}">
+      {% elseif recipe_gallery %}
+        <div class="recipe-hero__gallery" data-recipe-gallery tabindex="0" role="region" aria-roledescription="carousel" aria-label="Recipe media gallery">
+          <div class="recipe-hero__slides">
+            {% for item in recipe_gallery %}
+              <div class="recipe-hero__slide" data-recipe-gallery-slide{% if not loop.first %} hidden{% endif %}>
+                {% if item.kind == 'image' %}
+                  <img class="recipe-hero__media" src="{{ item.url }}" alt="{{ item.alt }}" {% if not loop.first %}loading="lazy"{% endif %}>
+                {% else %}
+                  <video class="recipe-hero__media" controls playsinline preload="metadata">
+                    <source src="{{ item.url }}" type="{{ item.mime }}">
+                    Your browser does not support this video.
+                  </video>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          {% if recipe_gallery|length > 1 %}
+            <div class="recipe-hero__gallery-controls">
+              <button type="button" data-recipe-gallery-previous aria-label="Previous gallery item">‹</button>
+              <span data-recipe-gallery-position aria-live="polite">1 / {{ recipe_gallery|length }}</span>
+              <button type="button" data-recipe-gallery-next aria-label="Next gallery item">›</button>
+            </div>
+          {% endif %}
+        </div>
       {% endif %}
     </header>
 

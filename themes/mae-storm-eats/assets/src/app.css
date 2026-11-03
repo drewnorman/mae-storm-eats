@@ -168,6 +168,26 @@
     @apply aspect-[2.58/1] w-full border-[5px] border-coral object-cover;
   }
 
+  .recipe-hero__gallery {
+    @apply min-w-0 border-[5px] border-coral bg-black text-white;
+  }
+
+  .recipe-hero__slide[hidden] {
+    display: none;
+  }
+
+  .recipe-hero__media {
+    @apply block aspect-[2.58/1] w-full object-contain;
+  }
+
+  .recipe-hero__gallery-controls {
+    @apply flex items-center justify-between bg-olive px-3 text-sm;
+  }
+
+  .recipe-hero__gallery-controls button {
+    @apply px-3 py-1 text-2xl hover:bg-plum;
+  }
+
   .recipe-surface {
     @apply bg-white p-3 sm:p-5;
   }

@@ -1,0 +1,54 @@
+.mae-recipe-gallery__featured {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0.75rem;
+  background: #f6f7f7;
+}
+
+.mae-recipe-gallery__featured img,
+.mae-recipe-gallery__preview img {
+  display: block;
+  max-width: 6rem;
+  max-height: 4.5rem;
+  object-fit: contain;
+}
+
+.mae-recipe-gallery__items {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.mae-recipe-gallery__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 5rem;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid #c3c4c7;
+  background: #fff;
+}
+
+.mae-recipe-gallery__preview {
+  width: 6rem;
+}
+.mae-recipe-gallery__label {
+  flex: 1 1 10rem;
+  overflow-wrap: anywhere;
+}
+.mae-recipe-gallery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.mae-recipe-gallery__drag {
+  cursor: move;
+}
+.mae-recipe-gallery__placeholder {
+  min-height: 5rem;
+  border: 2px dashed #8c8f94;
+}

@@ -10,6 +10,12 @@ use Timber\Timber;
 
 final class RecipeView
 {
+    /** @return list<array{kind:string,url:string,alt:string,mime:string}> */
+    public static function gallery(Post $recipe): array
+    {
+        return RecipeGallery::frontendItems($recipe->ID);
+    }
+
     /**
      * @return array<string, mixed>
      */

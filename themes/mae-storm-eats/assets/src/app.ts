@@ -222,6 +222,48 @@ function bootMobileSearch(): void {
   });
 }
 
+function bootRecipeGalleries(): void {
+  document
+    .querySelectorAll<HTMLElement>("[data-recipe-gallery]")
+    .forEach((gallery) => {
+      const slides = Array.from(
+        gallery.querySelectorAll<HTMLElement>("[data-recipe-gallery-slide]"),
+      );
+      if (slides.length < 2) return;
+
+      const previous = gallery.querySelector<HTMLButtonElement>(
+        "[data-recipe-gallery-previous]",
+      );
+      const next = gallery.querySelector<HTMLButtonElement>(
+        "[data-recipe-gallery-next]",
+      );
+      const position = gallery.querySelector<HTMLElement>(
+        "[data-recipe-gallery-position]",
+      );
+      let index = 0;
+
+      const show = (nextIndex: number): void => {
+        slides[index]
+          .querySelectorAll("video")
+          .forEach((video) => video.pause());
+        slides[index].hidden = true;
+        index = (nextIndex + slides.length) % slides.length;
+        slides[index].hidden = false;
+        if (position) position.textContent = `${index + 1} / ${slides.length}`;
+      };
+
+      previous?.addEventListener("click", () => show(index - 1));
+      next?.addEventListener("click", () => show(index + 1));
+      gallery.addEventListener("keydown", (event) => {
+        if (event.target instanceof HTMLVideoElement) return;
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          show(index + (event.key === "ArrowRight" ? 1 : -1));
+        }
+      });
+    });
+}
+
 function bootRecipeShell(): void {
   const shell = document.querySelector<HTMLElement>("[data-recipe-shell]");
 
@@ -244,6 +286,7 @@ function bootRecipeShell(): void {
   bootConversionCalculator();
   bootFilterSelects();
   bootMobileSearch();
+  bootRecipeGalleries();
 }
 
 if (document.readyState === "loading") {
