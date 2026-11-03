@@ -96,6 +96,20 @@ final class AdminReview implements ServiceProviderInterface
             $this->listToEditorHtml($structured_data['ingredients'] ?? [], 'ul')
         );
 
+        $automatic_names = IngredientIndex::extractNames($structured_data['ingredients'] ?? []);
+        $has_override = metadata_exists('post', $post->ID, RecipeMeta::META_INGREDIENT_NAMES_OVERRIDE);
+        $ingredient_names = $has_override
+            ? IngredientIndex::cleanNames(get_post_meta($post->ID, RecipeMeta::META_INGREDIENT_NAMES_OVERRIDE, true))
+            : $automatic_names;
+        echo '<p><label><input type="checkbox" name="mae_storm_eats_meta[ingredient_names_auto]" value="1"'
+            . checked(! $has_override, true, false) . '> '
+            . esc_html__('Generate ingredient names automatically', 'mae-storm-eats') . '</label></p>';
+        $this->renderTextarea(
+            'ingredient_names',
+            __('Ingredient names for filtering, one per line. Uncheck automatic generation to save corrections.', 'mae-storm-eats'),
+            implode("\n", $ingredient_names)
+        );
+
         $this->renderEditor(
             'steps',
             __('Steps', 'mae-storm-eats'),
@@ -160,6 +174,17 @@ final class AdminReview implements ServiceProviderInterface
                 ? $decoded_raw['raw']
                 : (is_array($existing_structured['raw'] ?? null) ? $existing_structured['raw'] : []),
         ]);
+
+        if (! empty($values['ingredient_names_auto'])) {
+            delete_post_meta($post_id, RecipeMeta::META_INGREDIENT_NAMES_OVERRIDE);
+        } else {
+            update_post_meta(
+                $post_id,
+                RecipeMeta::META_INGREDIENT_NAMES_OVERRIDE,
+                IngredientIndex::cleanNames($this->sanitizeList((string) ($values['ingredient_names'] ?? '')))
+            );
+        }
+        (new IngredientIndex())->sync($post_id);
     }
 
     private function renderSelect(string $key, string $label, array $options, string $selected): void

@@ -33,6 +33,7 @@ fi
 "${wp[@]}" option update blogname "${site_title}"
 "${wp[@]}" plugin activate mae-storm-eats
 "${wp[@]}" theme activate mae-storm-eats
+"${wp[@]}" mae-storm eats index-ingredients
 
 # WordPress may choose plain permalinks when its first-install self-check runs
 # before the HTTPS proxy is ready. Recreate .htaccess for each ephemeral app

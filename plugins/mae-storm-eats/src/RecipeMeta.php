@@ -18,6 +18,7 @@ final class RecipeMeta implements ServiceProviderInterface
     public const META_IMPORT_STATUS = '_mae_storm_eats_recipe_import_status';
     public const META_IMPORT_ERRORS = '_mae_storm_eats_recipe_import_errors';
     public const META_STRUCTURED_DATA = '_mae_storm_eats_recipe_structured_data';
+    public const META_INGREDIENT_NAMES_OVERRIDE = '_mae_storm_eats_recipe_ingredient_names_override';
     public const META_PINTEREST_SYNC_STATUS = '_mae_storm_eats_recipe_pinterest_sync_status';
     public const META_PINTEREST_SYNCED_AT = '_mae_storm_eats_recipe_pinterest_synced_at';
 

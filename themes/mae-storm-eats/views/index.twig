@@ -7,32 +7,38 @@
     </button>
 
     <div id="recipe-search-panel" class="search-panel {{ recipe_filters_active ? '' : 'max-sm:hidden' }}" data-mobile-search-panel>
-      <form class="recipe-search" role="search" method="get" action="{{ site.url }}">
-        <label class="sr-only" for="recipe-search">Search recipes</label>
-        <input id="recipe-search" class="recipe-search__input" type="search" name="s" value="{{ search_query }}" placeholder="Spicy Braised Tofu">
-        <button class="recipe-search__submit" type="submit">Search</button>
+      <form method="get" action="{{ recipe_archive_url }}" role="search" data-recipe-filters>
+        <div class="recipe-search">
+          <label class="sr-only" for="recipe-search">Search recipes</label>
+          <input id="recipe-search" class="recipe-search__input" type="search" name="s" value="{{ search_query }}" placeholder="Spicy Braised Tofu">
+          <button class="recipe-search__submit" type="submit">Search</button>
+        </div>
+
+        {% if search_query %}
+          <p class="mt-3 text-lg">Results for “{{ search_query }}”</p>
+        {% endif %}
+
+        <div class="recipe-filters">
+          <span class="recipe-filters__label">Filters:</span>
+          {% for filter in recipe_filters %}
+            <label class="sr-only" for="recipe-filter-{{ loop.index }}">{{ filter.label }}</label>
+            <select id="recipe-filter-{{ loop.index }}" class="filter-select" name="{{ filter.parameter }}" data-filter-select>
+              <option value="">{{ filter.label }}</option>
+              {% for term in filter.terms %}
+                <option value="{{ term.slug }}" {{ selected_filters[filter.parameter] == term.slug ? 'selected' : '' }}>{{ term.name }}</option>
+              {% endfor %}
+            </select>
+          {% endfor %}
+          <label class="sr-only" for="ingredient-filter">Ingredient Selection</label>
+          <input id="ingredient-filter" class="filter-select" type="search" name="ingredient" value="{{ selected_filters.ingredient }}" list="ingredient-options" placeholder="Ingredient Selection" autocomplete="off" data-ingredient-filter>
+          <datalist id="ingredient-options">
+            {% for term in ingredient_terms %}<option value="{{ term.name }}"></option>{% endfor %}
+          </datalist>
+          {% if recipe_filters_active %}
+            <a class="recipe-filters__clear" href="{{ recipe_archive_url }}">Clear filters</a>
+          {% endif %}
+        </div>
       </form>
-
-      {% if search_query %}
-        <p class="mt-3 text-lg">Results for “{{ search_query }}”</p>
-      {% endif %}
-
-      <div class="recipe-filters">
-        <span class="recipe-filters__label">Filters:</span>
-        {% for filter in recipe_filters %}
-          <label class="sr-only" for="recipe-filter-{{ loop.index }}">{{ filter.label }}</label>
-          <select id="recipe-filter-{{ loop.index }}" class="filter-select" data-filter-select>
-            <option value="">{{ filter.label }}</option>
-            {% for term in filter.terms %}
-              <option value="{{ function('get_term_link', term) }}">{{ term.name }}</option>
-            {% endfor %}
-          </select>
-        {% endfor %}
-        <label class="sr-only" for="ingredient-filter">Ingredient selection unavailable</label>
-        <select id="ingredient-filter" class="filter-select disabled:cursor-not-allowed disabled:opacity-55" disabled>
-          <option>Ingredient Selection</option>
-        </select>
-      </div>
     </div>
 
     <div class="recipe-grid">
@@ -40,7 +46,7 @@
         {% include "partials/recipe-card.twig" with { post: post } only %}
       {% else %}
         <div class="col-span-full border-2 border-dashed border-coral bg-cream p-8 text-lg">
-          No recipes are ready yet.
+          {{ recipe_filters_active ? 'No recipes match these filters.' : 'No recipes are ready yet.' }}
         </div>
       {% endfor %}
     </div>

@@ -112,7 +112,44 @@ add_action('pre_get_posts', function (\WP_Query $query): void {
     return;
   }
 
-  if ($query->is_home() || $query->is_search()) {
-    $query->set('post_type', [class_exists(ContentTypes::class) ? ContentTypes::POST_TYPE_RECIPE : 'recipe']);
+  if (!class_exists(ContentTypes::class)) {
+    if ($query->is_home() || $query->is_search()) {
+      $query->set('post_type', ['recipe']);
+    }
+    return;
+  }
+
+  $recipe_taxonomies = [
+    ContentTypes::TAXONOMY_COURSE,
+    ContentTypes::TAXONOMY_CUISINE,
+    ContentTypes::TAXONOMY_DIET,
+    ContentTypes::TAXONOMY_INGREDIENT,
+  ];
+  if ($query->is_home() || $query->is_search() || $query->is_post_type_archive(ContentTypes::POST_TYPE_RECIPE) || $query->is_tax($recipe_taxonomies)) {
+    $query->set('post_type', [ContentTypes::POST_TYPE_RECIPE]);
+    $filters = [
+      'course' => ContentTypes::TAXONOMY_COURSE,
+      'cuisine' => ContentTypes::TAXONOMY_CUISINE,
+      'diet' => ContentTypes::TAXONOMY_DIET,
+      'ingredient' => ContentTypes::TAXONOMY_INGREDIENT,
+    ];
+    $tax_query = $query->get('tax_query');
+    $tax_query = is_array($tax_query) ? $tax_query : [];
+    foreach ($filters as $parameter => $taxonomy) {
+      $raw = $_GET[$parameter] ?? '';
+      $value = is_string($raw) ? sanitize_text_field(wp_unslash($raw)) : '';
+      if ($value === '') {
+        continue;
+      }
+      $term = get_term_by($parameter === 'ingredient' ? 'name' : 'slug', $value, $taxonomy);
+      $tax_query[] = [
+        'taxonomy' => $taxonomy,
+        'field' => 'term_id',
+        'terms' => $term instanceof \WP_Term ? [$term->term_id] : [0],
+      ];
+    }
+    if ($tax_query !== []) {
+      $query->set('tax_query', ['relation' => 'AND', ...$tax_query]);
+    }
   }
 });

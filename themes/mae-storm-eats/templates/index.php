@@ -17,19 +17,31 @@ if (!mae_storm_eats_app_ready()) {
 
 $context = \Timber\Timber::context();
 $context['posts'] = \Timber\Timber::get_posts();
-$context['recipe_filters_active'] = ($context['search_query'] ?? '') !== '' || is_tax();
+$context['search_query'] = get_search_query(false);
+$context['selected_filters'] = [];
+foreach (['course', 'cuisine', 'diet', 'ingredient'] as $parameter) {
+  $raw = $_GET[$parameter] ?? '';
+  $context['selected_filters'][$parameter] = is_string($raw) ? sanitize_text_field(wp_unslash($raw)) : '';
+}
+$context['recipe_filters_active'] = $context['search_query'] !== ''
+  || in_array(true, array_map(static fn (string $value): bool => $value !== '', $context['selected_filters']), true)
+  || is_tax();
 $context['recipe_archive_url'] = get_post_type_archive_link(ContentTypes::POST_TYPE_RECIPE) ?: home_url('/');
+$context['ingredient_terms'] = RecipeView::terms(ContentTypes::TAXONOMY_INGREDIENT);
 $context['recipe_filters'] = [
   [
     'label' => __('Course', 'mae-storm-eats'),
+    'parameter' => 'course',
     'terms' => RecipeView::terms(ContentTypes::TAXONOMY_COURSE),
   ],
   [
     'label' => __('Cuisine', 'mae-storm-eats'),
+    'parameter' => 'cuisine',
     'terms' => RecipeView::terms(ContentTypes::TAXONOMY_CUISINE),
   ],
   [
     'label' => __('Diet', 'mae-storm-eats'),
+    'parameter' => 'diet',
     'terms' => RecipeView::terms(ContentTypes::TAXONOMY_DIET),
   ],
 ];

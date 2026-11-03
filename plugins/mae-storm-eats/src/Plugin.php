@@ -22,6 +22,7 @@ final class Plugin
             new CommentsDisabled(),
             new ContentTypes(),
             new RecipeMeta(),
+            new IngredientIndex(),
             new ReviewMeta(),
             new RecipeBackfill(),
             new AdminReview(),
