@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.4.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.4.0...v0.4.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ops:** invoke registered ingredient index command ([3e6c333](https://github.com/drewnorman/mae-storm-eats/commit/3e6c3335ff5d8c7b31036f59b30d21296d1a5801))
+* **ops:** invoke registered ingredient index command ([5df22a7](https://github.com/drewnorman/mae-storm-eats/commit/5df22a7697cb0676c58386628997e3d262ee0d53))
+
 ## [0.4.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.4...v0.4.0) (2026-11-03)
 
 
