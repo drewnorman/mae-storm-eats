@@ -30,7 +30,7 @@ final class RecipeCommand
      *
      * ## EXAMPLES
      *
-     *     wp mae-storm eats index-ingredients
+     *     wp mae-storm eats index_ingredients
      */
     public function index_ingredients(): void
     {
