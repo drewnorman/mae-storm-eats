@@ -9,7 +9,6 @@ the same release tag.
 
 ### Features
 
-* increase media upload limit to 10 MB ([f2dc1a2](https://github.com/drewnorman/mae-storm-eats/commit/f2dc1a2f3118bd0934440c48a9fa06e1b5b87548))
 * increase media upload limit to 10 MB ([d796830](https://github.com/drewnorman/mae-storm-eats/commit/d79683018b63bd803d094ef8b558ecc814bfcfd1))
 
 ## [0.6.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.5.0...v0.6.0) (2026-11-03)
