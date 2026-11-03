@@ -36,6 +36,7 @@ for installed in 1 0; do
     : >"${WP_LOG}"
     "${repo_root}/scripts/production/initialize.sh" >/dev/null
     grep -Fqx -- "--allow-root --path=${WORDPRESS_PATH} option update blogname Mae Storm Eats" "${WP_LOG}"
+    grep -Fqx -- "--allow-root --path=${WORDPRESS_PATH} mae-storm eats index_ingredients" "${WP_LOG}"
     if [[ "${installed}" == 0 ]]; then
         grep -Fqx -- "--allow-root --path=${WORDPRESS_PATH} core install --url=https://eats.maestorm.com --title=Mae Storm Eats --admin_user=admin --admin_password=test-password --admin_email=admin@example.com --skip-email" "${WP_LOG}"
     fi
