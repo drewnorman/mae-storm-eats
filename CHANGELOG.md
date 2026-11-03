@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.5.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.4.1...v0.5.0) (2026-11-03)
+
+
+### Features
+
+* **recipes:** add mixed-media gallery ([1637dac](https://github.com/drewnorman/mae-storm-eats/commit/1637dac4a827216b7b35109acf07e91698d1eef0))
+* **recipes:** add mixed-media gallery ([a1b3f72](https://github.com/drewnorman/mae-storm-eats/commit/a1b3f72f4b5470b68ffee33bea9864c143c2353f))
+
 ## [0.4.1](https://github.com/drewnorman/mae-storm-eats/compare/v0.4.0...v0.4.1) (2026-11-03)
 
 
