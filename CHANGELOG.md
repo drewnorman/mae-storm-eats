@@ -9,7 +9,6 @@ the same release tag.
 
 ### Features
 
-* **media:** convert HEIC uploads to WebP ([038eeb6](https://github.com/drewnorman/mae-storm-eats/commit/038eeb67827dd2361851b09ef14e78fdd55dcde2))
 * **media:** convert HEIC uploads to WebP ([5b36bb6](https://github.com/drewnorman/mae-storm-eats/commit/5b36bb6ca2975ed1480b2a37c1f2a6626120a69a))
 
 ## [0.5.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.4.1...v0.5.0) (2026-11-03)
