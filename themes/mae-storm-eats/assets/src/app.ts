@@ -160,11 +160,38 @@ function bootConversionCalculator(): void {
 
 function bootFilterSelects(): void {
   document
+    .querySelectorAll<HTMLFormElement>("[data-recipe-filters]")
+    .forEach((form) => {
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const destination = new URL(form.action);
+        for (const [key, value] of new FormData(form).entries()) {
+          const trimmed = String(value).trim();
+          if (trimmed) {
+            destination.searchParams.set(key, trimmed);
+          }
+        }
+        window.location.assign(destination.toString());
+      });
+    });
+  document
     .querySelectorAll<HTMLSelectElement>("[data-filter-select]")
     .forEach((select) => {
       select.addEventListener("change", () => {
-        if (select.value) {
-          window.location.assign(select.value);
+        select.form?.requestSubmit();
+      });
+    });
+  document
+    .querySelectorAll<HTMLInputElement>("[data-ingredient-filter]")
+    .forEach((input) => {
+      input.addEventListener("change", () => {
+        const choices = Array.from(
+          document.querySelectorAll<HTMLOptionElement>(
+            "#ingredient-options option",
+          ),
+        );
+        if (choices.some((option) => option.value === input.value)) {
+          input.form?.requestSubmit();
         }
       });
     });
