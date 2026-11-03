@@ -26,6 +26,8 @@ First-party WordPress plugin for the private eats.maestorm.com recipe app.
   attachment. The source is removed after successful conversion; unsupported or
   damaged images return an upload error. The WordPress image runtime needs
   Imagick with HEIC decoding and WebP encoding.
+  The supplied PHP configuration accepts source files up to 10 MB and allows
+  12 MB for the enclosing multipart request.
 - Protects frontend access through a shared-password gate.
 - Lets administrators rotate the shared frontend password under **Settings →
   Private Access**, storing only a hash in WordPress.

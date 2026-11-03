@@ -16,6 +16,12 @@ trap 'rm -f -- "${response}"' EXIT
 "${wp[@]}" plugin is-active mae-storm-eats
 "${wp[@]}" theme is-active mae-storm-eats
 "${wp[@]}" eval 'if (!class_exists(\Timber\Timber::class)) { fwrite(STDERR, "Timber unavailable\n"); exit(1); }'
+"${wp[@]}" eval '
+    if (wp_max_upload_size() !== 10 * MB_IN_BYTES || ini_get("post_max_size") !== "12M") {
+        fwrite(STDERR, "Media upload limit is not 10 MB.\n");
+        exit(1);
+    }
+'
 
 if ! podman exec --user www-data mae-storm-eats sh -eu -c '
     upload_dir="/var/www/html/wp-content/uploads/$(date +%Y/%m)"
