@@ -4,6 +4,15 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.4.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.4...v0.4.0) (2026-11-03)
+
+
+### Features
+
+* **plugin:** index recipe ingredient names ([3f12744](https://github.com/drewnorman/mae-storm-eats/commit/3f12744980f3e8b6da77c8fe7b4d1d8a623ae665))
+* **recipes:** filter recipes by ingredient ([766105d](https://github.com/drewnorman/mae-storm-eats/commit/766105d210555b78739cead65e60b914751a9ea8))
+* **theme:** combine recipe and ingredient filters ([b7df9ca](https://github.com/drewnorman/mae-storm-eats/commit/b7df9cacba0af16c4936124e59dedec7f4a1319a))
+
 ## [0.3.4](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.3...v0.3.4) (2026-11-03)
 
 
