@@ -26,6 +26,20 @@ final class RecipeCommand
     }
 
     /**
+     * Rebuilds ingredient terms for existing recipes. Safe to run repeatedly.
+     *
+     * ## EXAMPLES
+     *
+     *     wp mae-storm eats index-ingredients
+     */
+    public function index_ingredients(): void
+    {
+        $index = new IngredientIndex();
+        $count = $index->backfill();
+        \WP_CLI::success("Indexed ingredients for {$count} recipes.");
+    }
+
+    /**
      * Revalidates a recipe candidate.
      *
      * ## EXAMPLES

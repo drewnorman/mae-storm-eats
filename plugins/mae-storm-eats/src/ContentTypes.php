@@ -13,6 +13,7 @@ final class ContentTypes implements ServiceProviderInterface
     public const TAXONOMY_COURSE = 'recipe_course';
     public const TAXONOMY_DIET = 'recipe_diet';
     public const TAXONOMY_TAG = 'recipe_tag';
+    public const TAXONOMY_INGREDIENT = 'recipe_ingredient';
 
     public function register(): void
     {
@@ -99,6 +100,17 @@ final class ContentTypes implements ServiceProviderInterface
 
     public function registerTaxonomies(): void
     {
+        register_taxonomy(self::TAXONOMY_INGREDIENT, [self::POST_TYPE_RECIPE], [
+            'labels' => [
+                'name' => __('Ingredients', 'mae-storm-eats'),
+                'singular_name' => __('Ingredient', 'mae-storm-eats'),
+            ],
+            'public' => false,
+            'show_ui' => false,
+            'show_in_rest' => false,
+            'meta_box_cb' => false,
+        ]);
+
         $this->registerHierarchicalTaxonomy(
             self::TAXONOMY_CUISINE,
             __('Cuisines', 'mae-storm-eats'),
