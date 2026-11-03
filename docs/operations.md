@@ -69,6 +69,9 @@ complete tagged-extension import including images and reviews.
 6. To update, fetch tags, check out the approved tag, then reload the temporary
    add-on from `about:debugging`.
 
+Release tags include the compiled extension scripts. The owner does not need to
+run the TypeScript build before loading `extension/manifest.json`.
+
 The extension ID is stable and its source version matches the release. It is an
 operator-managed development tool: no XPI, AMO listing, signing, or
 automatic updates are provided. This installation model does not authorize
