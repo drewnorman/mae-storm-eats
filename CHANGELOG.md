@@ -4,6 +4,13 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.3.4](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.3...v0.3.4) (2026-11-03)
+
+
+### Documentation
+
+* **extension:** clarify release-tag loading ([7be79ee](https://github.com/drewnorman/mae-storm-eats/commit/7be79eeccc0d68ac69349bab7e040b35d3e41548))
+
 ## [0.3.3](https://github.com/drewnorman/mae-storm-eats/compare/v0.3.2...v0.3.3) (2026-11-02)
 
 
