@@ -54,6 +54,7 @@ if (is_search()) {
   $context['post'] = \Timber\Timber::get_post();
   $context['recipe_data'] = RecipeView::structuredData($context['post']);
   $context['recipe_meta'] = RecipeView::meta($context['post']);
+  $context['recipe_gallery'] = RecipeView::gallery($context['post']);
   $context['recipe_reviews'] = RecipeView::reviews($context['post']);
   $context['recipe_schema'] = RecipeView::schema($context['post'], $context['recipe_data'], $context['recipe_meta']);
   $context['related_recipes'] = RecipeView::relatedRecipes($context['post']);

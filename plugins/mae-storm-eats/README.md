@@ -19,6 +19,9 @@ First-party WordPress plugin for the private eats.maestorm.com recipe app.
 - Adds WP-CLI commands under `wp mae-storm eats`.
 - Performs activation checks for PHP 8.3+ and WordPress 6.5+.
 - Provides recipe view helpers consumed by the first-party Timber theme.
+- Adds a Gallery box to each Recipe editor for ordered Media Library photos and
+  MP4, WebM, or Ogg videos. The current featured image always leads the gallery;
+  additional items are stored separately from imported image references.
 - Protects frontend access through a shared-password gate.
 - Lets administrators rotate the shared frontend password under **Settings →
   Private Access**, storing only a hash in WordPress.
