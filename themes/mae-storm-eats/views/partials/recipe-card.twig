@@ -5,9 +5,11 @@
     {% else %}
       <span class="recipe-card__placeholder" aria-hidden="true"></span>
     {% endif %}
-    {% include "partials/recipe-meta.twig" with { post: post } only %}
   </a>
-  <h2 class="recipe-card__title">
-    <a href="{{ post.link }}">{{ post.title }}</a>
-  </h2>
+  <div class="recipe-card__info">
+    <h2 class="recipe-card__title">
+      <a href="{{ post.link }}">{{ post.title }}</a>
+    </h2>
+    {% include "partials/recipe-meta.twig" with { post: post } only %}
+  </div>
 </article>
