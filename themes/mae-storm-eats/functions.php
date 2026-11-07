@@ -225,6 +225,15 @@ add_action('pre_get_posts', function (\WP_Query $query): void {
   ];
   if ($query->is_home() || $query->is_search() || $query->is_post_type_archive(ContentTypes::POST_TYPE_RECIPE) || $query->is_tax($recipe_taxonomies)) {
     $query->set('post_type', [ContentTypes::POST_TYPE_RECIPE]);
+    $sort = $_GET['sort'] ?? '';
+    $sort = is_string($sort) ? sanitize_key(wp_unslash($sort)) : '';
+    $sort = in_array($sort, ['recent', 'title', 'time', 'difficulty'], true) ? $sort : 'recent';
+    $query->set('mae_recipe_sort', $sort);
+    if ($sort === 'recent') {
+      $query->set('orderby', ['date' => 'DESC', 'ID' => 'DESC']);
+    } elseif ($sort === 'title') {
+      $query->set('orderby', ['title' => 'ASC', 'ID' => 'DESC']);
+    }
     $tax_query = $query->get('tax_query');
     $tax_query = is_array($tax_query) ? $tax_query : [];
     $tax_query = mae_storm_eats_recipe_tax_query(mae_storm_eats_selected_recipe_filters(), $tax_query);
@@ -233,3 +242,31 @@ add_action('pre_get_posts', function (\WP_Query $query): void {
     }
   }
 });
+
+add_filter('posts_orderby', function (string $orderby, \WP_Query $query): string {
+  if (is_admin()) {
+    return $orderby;
+  }
+
+  $sort = $query->get('mae_recipe_sort');
+  if ($sort !== 'time' && $sort !== 'difficulty') {
+    return $orderby;
+  }
+
+  global $wpdb;
+  $meta_key = $sort === 'time'
+    ? \MaeStorm\Eats\RecipeMeta::META_TOTAL_TIME_MINUTES
+    : \MaeStorm\Eats\RecipeMeta::META_DIFFICULTY;
+  $value = $wpdb->prepare(
+    "(SELECT pm.meta_value FROM {$wpdb->postmeta} pm WHERE pm.post_id = {$wpdb->posts}.ID AND pm.meta_key = %s ORDER BY pm.meta_id DESC LIMIT 1)",
+    $meta_key,
+  );
+
+  if ($sort === 'time') {
+    $minutes = "CAST({$value} AS UNSIGNED)";
+    return "CASE WHEN {$minutes} > 0 THEN 0 ELSE 1 END ASC, {$minutes} ASC, {$wpdb->posts}.post_title ASC, {$wpdb->posts}.ID DESC";
+  }
+
+  $difficulty = "LOWER(TRIM({$value}))";
+  return "CASE {$difficulty} WHEN 'easy' THEN 0 WHEN 'medium' THEN 1 WHEN 'hard' THEN 2 ELSE 3 END ASC, {$wpdb->posts}.post_title ASC, {$wpdb->posts}.ID DESC";
+}, 10, 2);

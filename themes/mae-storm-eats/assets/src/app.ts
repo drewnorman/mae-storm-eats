@@ -308,6 +308,149 @@ function bootMobileSearch(): void {
   });
 }
 
+function bootRecipeListing(): void {
+  const results = document.querySelector<HTMLElement>("[data-recipe-results]");
+  if (!results) return;
+
+  const viewInput = document.querySelector<HTMLInputElement>(
+    "[data-recipe-view-input]",
+  );
+  const viewLinks = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>("[data-recipe-view-link]"),
+  );
+  let currentView = results.dataset.recipeView ?? "card";
+
+  const nextLink = document.querySelector<HTMLAnchorElement>(
+    "[data-recipe-next-page]",
+  );
+  const setNextLinkView = (): void => {
+    if (!nextLink) return;
+    const url = new URL(nextLink.href);
+    url.searchParams.set("view", currentView);
+    nextLink.href = url.toString();
+  };
+
+  viewLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const view = link.dataset.recipeViewLink;
+      if (view !== "card" && view !== "grid" && view !== "list") return;
+      event.preventDefault();
+      currentView = view;
+      results.dataset.recipeView = view;
+      if (viewInput) viewInput.value = view;
+      viewLinks.forEach((item) => {
+        if (item === link) {
+          item.setAttribute("aria-current", "page");
+        } else {
+          item.removeAttribute("aria-current");
+        }
+      });
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", view);
+      window.history.replaceState(window.history.state, "", url);
+      setNextLinkView();
+    });
+  });
+
+  const pagination = document.querySelector<HTMLElement>(
+    "[data-recipe-pagination]",
+  );
+  const status = document.querySelector<HTMLElement>(
+    "[data-recipe-loading-status]",
+  );
+  const retry = document.querySelector<HTMLButtonElement>(
+    "[data-recipe-loading-retry]",
+  );
+  if (!pagination || !nextLink || !status || !retry) return;
+
+  let loading = false;
+  let failed = false;
+  let finished = false;
+
+  const loadNext = async (): Promise<void> => {
+    if (loading || failed || finished) return;
+    loading = true;
+    status.textContent = "Loading more recipes…";
+    const requestUrl = nextLink.href;
+
+    try {
+      const response = await fetch(requestUrl, { credentials: "same-origin" });
+      if (!response.ok) throw new Error("Recipe page request failed");
+      const page = new DOMParser().parseFromString(
+        await response.text(),
+        "text/html",
+      );
+      const newResults = page.querySelector<HTMLElement>(
+        "[data-recipe-results]",
+      );
+      if (!newResults) throw new Error("Recipe results were missing");
+      const cards = Array.from(newResults.querySelectorAll(".recipe-card"));
+      if (cards.length === 0) throw new Error("Recipe page was empty");
+      cards.forEach((card) => results.append(document.importNode(card, true)));
+
+      const following = page.querySelector<HTMLAnchorElement>(
+        "[data-recipe-next-page]",
+      );
+      if (following) {
+        nextLink.href = new URL(following.href, requestUrl).toString();
+        setNextLinkView();
+        status.textContent = `${cards.length} more recipes loaded.`;
+      } else {
+        finished = true;
+        pagination.hidden = true;
+        status.textContent = `${cards.length} more recipes loaded. All recipes are shown.`;
+      }
+      retry.hidden = true;
+    } catch {
+      failed = true;
+      status.textContent = "More recipes could not be loaded.";
+      retry.hidden = false;
+    } finally {
+      loading = false;
+    }
+  };
+
+  nextLink.addEventListener("click", (event) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    failed = false;
+    void loadNext();
+  });
+  retry.addEventListener("click", () => {
+    failed = false;
+    retry.hidden = true;
+    void loadNext();
+  });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadNext();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(pagination);
+  }
+}
+
 function bootRecipeGalleries(): void {
   document
     .querySelectorAll<HTMLElement>("[data-recipe-gallery]")
@@ -372,6 +515,7 @@ function bootRecipeShell(): void {
   bootConversionCalculator();
   bootFilterSelects();
   bootMobileSearch();
+  bootRecipeListing();
   bootRecipeGalleries();
 }
 

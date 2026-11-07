@@ -170,6 +170,30 @@
     @apply mt-5;
   }
 
+  .recipe-results-toolbar {
+    @apply mt-7 flex flex-wrap items-end justify-between gap-5;
+  }
+
+  .recipe-sort {
+    @apply grid w-full gap-1 text-base text-olive sm:w-72;
+  }
+
+  .recipe-sort .filter-select {
+    @apply h-12 text-base;
+  }
+
+  .recipe-view-switch {
+    @apply inline-flex border-2 border-plum bg-white;
+  }
+
+  .recipe-view-switch a {
+    @apply px-4 py-2.5 text-base text-olive transition hover:bg-cream;
+  }
+
+  .recipe-view-switch a[aria-current="page"] {
+    @apply bg-plum text-white;
+  }
+
   .recipe-grid {
     @apply mt-9 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-14;
   }
@@ -215,6 +239,64 @@
 
   .recipe-card__title a {
     @apply transition hover:text-plum;
+  }
+
+  .recipe-grid[data-recipe-view="grid"] {
+    @apply gap-x-5 gap-y-8 lg:grid-cols-4;
+  }
+
+  .recipe-grid[data-recipe-view="grid"] .recipe-meta {
+    @apply hidden;
+  }
+
+  .recipe-grid[data-recipe-view="grid"] .recipe-card__title {
+    @apply mt-2 text-xl sm:text-2xl;
+  }
+
+  .recipe-grid[data-recipe-view="list"] {
+    @apply grid-cols-1 gap-4;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card {
+    @apply grid grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)] items-center gap-4 bg-white p-3 text-left sm:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)];
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__image,
+  .recipe-grid[data-recipe-view="list"] .recipe-card__placeholder {
+    @apply aspect-[1.76/1];
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-meta {
+    @apply justify-start gap-x-3 px-0 text-sm sm:text-base;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__title {
+    @apply mt-0 px-0 text-xl sm:text-3xl;
+  }
+
+  .recipe-pagination {
+    @apply mt-8 flex justify-center;
+  }
+
+  .recipe-pagination[hidden] {
+    display: none;
+  }
+
+  .recipe-pagination a,
+  .recipe-loading-retry {
+    @apply border-2 border-plum bg-white px-6 py-3 text-olive transition hover:bg-plum hover:text-white;
+  }
+
+  .recipe-loading-retry {
+    @apply mx-auto mt-5;
+  }
+
+  .recipe-loading-retry:not([hidden]) {
+    @apply block;
+  }
+
+  .recipe-loading-status {
+    @apply mt-4 text-center text-sm text-olive;
   }
 
   .recipe-hero {

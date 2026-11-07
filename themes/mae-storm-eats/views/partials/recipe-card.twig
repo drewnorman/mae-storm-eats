@@ -1,7 +1,7 @@
 <article class="recipe-card group">
   <a class="recipe-card__media" href="{{ post.link }}" aria-label="View {{ post.title }}">
     {% if post.thumbnail %}
-      <img class="recipe-card__image" src="{{ post.thumbnail.src('medium_large') }}" alt="">
+      <img class="recipe-card__image" src="{{ post.thumbnail.src('medium_large') }}" alt="" loading="lazy">
     {% else %}
       <span class="recipe-card__placeholder" aria-hidden="true"></span>
     {% endif %}
