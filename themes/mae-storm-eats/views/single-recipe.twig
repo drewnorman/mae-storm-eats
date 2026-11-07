@@ -14,10 +14,13 @@
           recipe_yield: recipe_meta.recipe_yield
         } only %}
         <h1 class="recipe-title">{{ post.title }}</h1>
-        <p class="recipe-taxonomy">
-          {% for term in post.terms %}{{ term.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-          {% if recipe_meta.difficulty %}{% if post.terms|length %}, {% endif %}{{ recipe_meta.difficulty|capitalize }}{% endif %}
-        </p>
+        {% set visible_terms = post.terms|filter(term => term.taxonomy not in ['recipe_ingredient', 'recipe_diet']) %}
+        {% if visible_terms or recipe_meta.difficulty %}
+          <p class="recipe-taxonomy">
+            {% for term in visible_terms %}{{ term.name }}{% if not loop.last or recipe_meta.difficulty %}, {% endif %}{% endfor %}
+            {% if recipe_meta.difficulty %}{{ recipe_meta.difficulty|capitalize }}{% endif %}
+          </p>
+        {% endif %}
       </div>
 
       {% if recipe_gallery|length == 1 and recipe_gallery[0].kind == 'image' %}

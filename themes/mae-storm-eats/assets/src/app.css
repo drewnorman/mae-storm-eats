@@ -218,7 +218,7 @@
   }
 
   .recipe-hero {
-    @apply grid gap-7 pb-6 sm:grid-cols-[minmax(0,1fr)_minmax(22rem,32.5rem)] sm:items-end;
+    @apply grid gap-7 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,36rem)] lg:items-start;
   }
 
   .recipe-hero .recipe-meta {
@@ -234,7 +234,7 @@
   }
 
   .recipe-hero__image {
-    @apply aspect-[2.58/1] w-full border-[5px] border-coral object-cover;
+    @apply aspect-[2.25/1] w-full border-[5px] border-coral object-cover;
   }
 
   .recipe-hero__gallery {
@@ -246,7 +246,11 @@
   }
 
   .recipe-hero__media {
-    @apply block aspect-[2.58/1] w-full object-contain;
+    @apply block aspect-[2.25/1] w-full object-contain;
+  }
+
+  .recipe-hero__media:is(img) {
+    @apply object-cover;
   }
 
   .recipe-hero__gallery-controls {
