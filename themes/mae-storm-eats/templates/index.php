@@ -18,15 +18,20 @@ if (!mae_storm_eats_app_ready()) {
 $context = \Timber\Timber::context();
 $context['posts'] = \Timber\Timber::get_posts();
 $context['search_query'] = get_search_query(false);
-$context['selected_filters'] = [];
-foreach (['course', 'cuisine', 'diet', 'ingredient'] as $parameter) {
-  $raw = $_GET[$parameter] ?? '';
-  $context['selected_filters'][$parameter] = is_string($raw) ? sanitize_text_field(wp_unslash($raw)) : '';
-}
-$context['recipe_filters_active'] = $context['search_query'] !== ''
-  || in_array(true, array_map(static fn (string $value): bool => $value !== '', $context['selected_filters']), true)
+$context['selected_filters'] = mae_storm_eats_selected_recipe_filters();
+$context['more_filter_count'] = count($context['selected_filters']['ingredient'])
+  + (int) ($context['selected_filters']['occasion'] !== '')
+  + (int) ($context['selected_filters']['vibe'] !== '');
+$context['recipe_filter_selections_active'] = $context['more_filter_count'] > 0
+  || $context['selected_filters']['course'] !== ''
+  || $context['selected_filters']['cuisine'] !== ''
   || is_tax();
+$context['recipe_filters_active'] = $context['search_query'] !== ''
+  || $context['recipe_filter_selections_active'];
 $context['recipe_archive_url'] = get_post_type_archive_link(ContentTypes::POST_TYPE_RECIPE) ?: home_url('/');
+$context['recipe_clear_filters_url'] = $context['search_query'] === ''
+  ? $context['recipe_archive_url']
+  : add_query_arg('s', $context['search_query'], $context['recipe_archive_url']);
 $context['ingredient_terms'] = RecipeView::terms(ContentTypes::TAXONOMY_INGREDIENT);
 $context['recipe_filters'] = [
   [
@@ -39,10 +44,17 @@ $context['recipe_filters'] = [
     'parameter' => 'cuisine',
     'terms' => RecipeView::terms(ContentTypes::TAXONOMY_CUISINE),
   ],
+];
+$context['more_recipe_filters'] = [
   [
-    'label' => __('Diet', 'mae-storm-eats'),
-    'parameter' => 'diet',
-    'terms' => RecipeView::terms(ContentTypes::TAXONOMY_DIET),
+    'label' => __('Occasion', 'mae-storm-eats'),
+    'parameter' => 'occasion',
+    'terms' => RecipeView::terms(ContentTypes::TAXONOMY_OCCASION),
+  ],
+  [
+    'label' => __('Vibe', 'mae-storm-eats'),
+    'parameter' => 'vibe',
+    'terms' => RecipeView::terms(ContentTypes::TAXONOMY_VIBE),
   ],
 ];
 

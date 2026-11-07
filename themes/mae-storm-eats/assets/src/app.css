@@ -86,7 +86,7 @@
   }
 
   .recipe-filters {
-    @apply mt-8 grid gap-3 sm:grid-cols-[auto_repeat(2,minmax(0,1fr))] sm:items-center lg:grid-cols-[auto_repeat(4,minmax(9.5rem,1fr))];
+    @apply mt-8 grid gap-3 sm:grid-cols-[auto_repeat(2,minmax(0,1fr))] sm:items-center lg:grid-cols-[auto_repeat(2,minmax(9.5rem,1fr))];
   }
 
   .recipe-filters__label {
@@ -99,6 +99,75 @@
 
   .recipe-filters__clear {
     @apply text-sm text-olive underline hover:text-plum sm:col-start-2;
+  }
+
+  .recipe-more {
+    @apply col-span-full;
+  }
+
+  .recipe-more__summary {
+    @apply inline-flex min-h-12 cursor-pointer items-center border-b-4 border-plum bg-white px-5 py-2 text-lg text-olive;
+  }
+
+  .recipe-more__panel {
+    @apply mt-3 border-2 border-coral bg-cream p-4 sm:p-6;
+  }
+
+  .recipe-more__fields {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .recipe-more__label {
+    @apply mb-2 block text-sm font-bold uppercase text-olive;
+  }
+
+  .recipe-more__ingredients {
+    @apply mt-5;
+  }
+
+  .recipe-more__ingredient-select {
+    @apply min-h-32 w-full border-2 border-plum bg-white p-2 text-olive;
+  }
+
+  .recipe-more__ingredient-entry {
+    @apply flex gap-2;
+  }
+
+  .recipe-more__ingredient-entry input {
+    @apply min-w-0 flex-1;
+  }
+
+  .recipe-more__ingredient-entry button,
+  .recipe-more__apply {
+    @apply bg-olive px-5 py-2 text-white transition hover:bg-plum;
+  }
+
+  .recipe-more__ingredient-chips {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .recipe-more__ingredient-chips button {
+    @apply border border-plum bg-white px-3 py-1 text-sm text-olive hover:bg-plum hover:text-white;
+  }
+
+  .recipe-more__ingredient-feedback {
+    @apply mt-2 text-sm text-olive;
+  }
+
+  .recipe-more__match {
+    @apply mt-4 flex flex-wrap gap-x-6 gap-y-2;
+  }
+
+  .recipe-more__match legend {
+    @apply w-full;
+  }
+
+  .recipe-more__match label {
+    @apply inline-flex items-center gap-2;
+  }
+
+  .recipe-more__apply {
+    @apply mt-5;
   }
 
   .recipe-grid {

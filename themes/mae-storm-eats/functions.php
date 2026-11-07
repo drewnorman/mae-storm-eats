@@ -107,6 +107,102 @@ function mae_storm_eats_render_operational_error(): void
   get_footer();
 }
 
+/**
+ * @return array{course:string,cuisine:string,occasion:string,vibe:string,ingredient:list<string>,ingredient_mode:string}
+ */
+function mae_storm_eats_selected_recipe_filters(): array
+{
+  $selected = [];
+  foreach (['course', 'cuisine', 'occasion', 'vibe'] as $parameter) {
+    $raw = $_GET[$parameter] ?? '';
+    $selected[$parameter] = is_string($raw) ? sanitize_text_field(wp_unslash($raw)) : '';
+  }
+
+  $raw_ingredients = $_GET['ingredient'] ?? [];
+  $legacy_ingredient = is_string($raw_ingredients);
+  $ingredients = is_array($raw_ingredients) ? $raw_ingredients : [$raw_ingredients];
+  $selected['ingredient'] = [];
+  foreach ($ingredients as $raw) {
+    if (!is_string($raw)) {
+      continue;
+    }
+
+    $value = sanitize_text_field(wp_unslash($raw));
+    if ($value === '') {
+      continue;
+    }
+
+    if ($legacy_ingredient) {
+      $term = get_term_by('slug', $value, ContentTypes::TAXONOMY_INGREDIENT);
+      if (!$term instanceof \WP_Term) {
+        $term = get_term_by('name', $value, ContentTypes::TAXONOMY_INGREDIENT);
+      }
+      $value = $term instanceof \WP_Term ? $term->slug : sanitize_title($value);
+    }
+
+    $selected['ingredient'][] = sanitize_title($value);
+  }
+  $selected['ingredient'] = array_values(array_unique($selected['ingredient']));
+
+  $raw_mode = $_GET['ingredient_mode'] ?? 'any';
+  $selected['ingredient_mode'] = $raw_mode === 'all' ? 'all' : 'any';
+
+  return $selected;
+}
+
+/**
+ * @param array{course:string,cuisine:string,occasion:string,vibe:string,ingredient:list<string>,ingredient_mode:string} $selected
+ * @param array<mixed> $existing
+ * @return array<mixed>
+ */
+function mae_storm_eats_recipe_tax_query(array $selected, array $existing = []): array
+{
+  $filters = [
+    'course' => ContentTypes::TAXONOMY_COURSE,
+    'cuisine' => ContentTypes::TAXONOMY_CUISINE,
+    'occasion' => ContentTypes::TAXONOMY_OCCASION,
+    'vibe' => ContentTypes::TAXONOMY_VIBE,
+  ];
+  foreach ($filters as $parameter => $taxonomy) {
+    if ($selected[$parameter] === '') {
+      continue;
+    }
+
+    $term = get_term_by('slug', $selected[$parameter], $taxonomy);
+    $existing[] = [
+      'taxonomy' => $taxonomy,
+      'field' => 'term_id',
+      'terms' => $term instanceof \WP_Term ? [(int) $term->term_id] : [0],
+    ];
+  }
+
+  if ($selected['ingredient'] !== []) {
+    $ingredient_ids = array_map(static function (string $slug): int {
+      $term = get_term_by('slug', $slug, ContentTypes::TAXONOMY_INGREDIENT);
+
+      return $term instanceof \WP_Term ? (int) $term->term_id : 0;
+    }, $selected['ingredient']);
+
+    if ($selected['ingredient_mode'] === 'all') {
+      foreach ($ingredient_ids as $id) {
+        $existing[] = [
+          'taxonomy' => ContentTypes::TAXONOMY_INGREDIENT,
+          'field' => 'term_id',
+          'terms' => [$id],
+        ];
+      }
+    } else {
+      $existing[] = [
+        'taxonomy' => ContentTypes::TAXONOMY_INGREDIENT,
+        'field' => 'term_id',
+        'terms' => $ingredient_ids,
+      ];
+    }
+  }
+
+  return $existing === [] ? [] : ['relation' => 'AND', ...$existing];
+}
+
 add_action('pre_get_posts', function (\WP_Query $query): void {
   if (is_admin() || !$query->is_main_query()) {
     return;
@@ -122,34 +218,18 @@ add_action('pre_get_posts', function (\WP_Query $query): void {
   $recipe_taxonomies = [
     ContentTypes::TAXONOMY_COURSE,
     ContentTypes::TAXONOMY_CUISINE,
-    ContentTypes::TAXONOMY_DIET,
+    ContentTypes::TAXONOMY_OCCASION,
+    ContentTypes::TAXONOMY_VIBE,
     ContentTypes::TAXONOMY_INGREDIENT,
+    ContentTypes::TAXONOMY_TAG,
   ];
   if ($query->is_home() || $query->is_search() || $query->is_post_type_archive(ContentTypes::POST_TYPE_RECIPE) || $query->is_tax($recipe_taxonomies)) {
     $query->set('post_type', [ContentTypes::POST_TYPE_RECIPE]);
-    $filters = [
-      'course' => ContentTypes::TAXONOMY_COURSE,
-      'cuisine' => ContentTypes::TAXONOMY_CUISINE,
-      'diet' => ContentTypes::TAXONOMY_DIET,
-      'ingredient' => ContentTypes::TAXONOMY_INGREDIENT,
-    ];
     $tax_query = $query->get('tax_query');
     $tax_query = is_array($tax_query) ? $tax_query : [];
-    foreach ($filters as $parameter => $taxonomy) {
-      $raw = $_GET[$parameter] ?? '';
-      $value = is_string($raw) ? sanitize_text_field(wp_unslash($raw)) : '';
-      if ($value === '') {
-        continue;
-      }
-      $term = get_term_by($parameter === 'ingredient' ? 'name' : 'slug', $value, $taxonomy);
-      $tax_query[] = [
-        'taxonomy' => $taxonomy,
-        'field' => 'term_id',
-        'terms' => $term instanceof \WP_Term ? [$term->term_id] : [0],
-      ];
-    }
+    $tax_query = mae_storm_eats_recipe_tax_query(mae_storm_eats_selected_recipe_filters(), $tax_query);
     if ($tax_query !== []) {
-      $query->set('tax_query', ['relation' => 'AND', ...$tax_query]);
+      $query->set('tax_query', $tax_query);
     }
   }
 });

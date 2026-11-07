@@ -6,12 +6,16 @@ namespace MaeStorm\Eats;
 
 final class ContentTypes implements ServiceProviderInterface
 {
+    private const TAXONOMY_REWRITE_VERSION = 1;
+    private const TAXONOMY_REWRITE_OPTION = 'mae_storm_eats_taxonomy_rewrite_version';
+
     public const POST_TYPE_RECIPE = 'recipe';
     public const POST_TYPE_REVIEW = 'recipe_review';
     public const POST_TYPE_PIN_IMPORT = 'pinterest_import';
     public const TAXONOMY_CUISINE = 'recipe_cuisine';
     public const TAXONOMY_COURSE = 'recipe_course';
-    public const TAXONOMY_DIET = 'recipe_diet';
+    public const TAXONOMY_OCCASION = 'recipe_occasion';
+    public const TAXONOMY_VIBE = 'recipe_vibe';
     public const TAXONOMY_TAG = 'recipe_tag';
     public const TAXONOMY_INGREDIENT = 'recipe_ingredient';
 
@@ -19,6 +23,7 @@ final class ContentTypes implements ServiceProviderInterface
     {
         add_action('init', [$this, 'registerPostTypes']);
         add_action('init', [$this, 'registerTaxonomies']);
+        add_action('init', [$this, 'refreshTaxonomyRewriteRules'], 20);
         add_filter('use_block_editor_for_post_type', [$this, 'disableBlockEditor'], 10, 2);
     }
 
@@ -126,10 +131,17 @@ final class ContentTypes implements ServiceProviderInterface
         );
 
         $this->registerHierarchicalTaxonomy(
-            self::TAXONOMY_DIET,
-            __('Diets', 'mae-storm-eats'),
-            __('Diet', 'mae-storm-eats'),
-            'diets'
+            self::TAXONOMY_OCCASION,
+            __('Occasions', 'mae-storm-eats'),
+            __('Occasion', 'mae-storm-eats'),
+            'occasions'
+        );
+
+        $this->registerHierarchicalTaxonomy(
+            self::TAXONOMY_VIBE,
+            __('Vibes', 'mae-storm-eats'),
+            __('Vibe', 'mae-storm-eats'),
+            'vibes'
         );
 
         register_taxonomy(self::TAXONOMY_TAG, [self::POST_TYPE_RECIPE], [
@@ -153,6 +165,16 @@ final class ContentTypes implements ServiceProviderInterface
             'hierarchical' => false,
             'rewrite' => ['slug' => 'recipe-tags'],
         ]);
+    }
+
+    public function refreshTaxonomyRewriteRules(): void
+    {
+        if ((int) get_option(self::TAXONOMY_REWRITE_OPTION, 0) >= self::TAXONOMY_REWRITE_VERSION) {
+            return;
+        }
+
+        flush_rewrite_rules(false);
+        update_option(self::TAXONOMY_REWRITE_OPTION, self::TAXONOMY_REWRITE_VERSION, false);
     }
 
     private function registerHierarchicalTaxonomy(string $taxonomy, string $plural, string $singular, string $slug): void
