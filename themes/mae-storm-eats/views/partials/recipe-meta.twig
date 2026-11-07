@@ -2,21 +2,15 @@
 {% set recipe_yield = recipe_yield|default(post.meta('_mae_storm_eats_recipe_servings'))|trim %}
 {% set displayed_yield = recipe_yield matches '/^\\d+(?:\\.\\d+)?$/' ? recipe_yield ~ ' servings' : recipe_yield %}
 
-{% if total_time or recipe_yield %}
-  <dl class="recipe-meta">
-    {% if total_time %}
-      <div class="recipe-meta__item">
-        <dt class="sr-only">Total time</dt>
-        <img class="recipe-meta__time-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/time.svg" alt="">
-        <dd>{{ total_time }} min</dd>
-      </div>
-    {% endif %}
-    {% if recipe_yield %}
-      <div class="recipe-meta__item">
-        <dt class="sr-only">Recipe yield</dt>
-        <img class="recipe-meta__servings-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/servings.svg" alt="">
-        <dd>{{ displayed_yield }}</dd>
-      </div>
-    {% endif %}
-  </dl>
-{% endif %}
+<dl class="recipe-meta">
+  <div class="recipe-meta__item">
+    <dt class="sr-only">Total time</dt>
+    <img class="recipe-meta__time-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/time.svg" alt="">
+    <dd>{{ total_time ? total_time ~ ' min' : 'N/A' }}</dd>
+  </div>
+  <div class="recipe-meta__item">
+    <dt class="sr-only">Recipe yield</dt>
+    <img class="recipe-meta__servings-icon" src="{{ function('get_template_directory_uri') }}/assets/src/images/servings.svg" alt="">
+    <dd>{{ displayed_yield ?: 'N/A' }}</dd>
+  </div>
+</dl>

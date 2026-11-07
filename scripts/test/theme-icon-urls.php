@@ -35,4 +35,19 @@ foreach (['time', 'servings'] as $icon) {
     }
 }
 
-echo "Recipe metadata icon URLs render with restricted context.\n";
+$missing_post = new class {
+    public function meta(string $key): int|string
+    {
+        unset($key);
+
+        return '';
+    }
+};
+
+$missing_html = $twig->render('partials/recipe-meta.twig', ['post' => $missing_post]);
+if (substr_count($missing_html, '<dd>N/A</dd>') !== 2) {
+    fwrite(STDERR, "Missing time and servings must both render as N/A.\n");
+    exit(1);
+}
+
+echo "Recipe metadata icons and missing-value labels render with restricted context.\n";
