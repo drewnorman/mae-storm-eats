@@ -30,6 +30,7 @@ final class Plugin
             new AdminReview(),
             new AdminBrowserImport(),
             new BrowserImport(),
+            new RecipeListing(),
             new RestProtection(),
             new CliCommands(),
         ];
