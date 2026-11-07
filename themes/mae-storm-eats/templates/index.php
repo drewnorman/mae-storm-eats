@@ -37,11 +37,11 @@ $raw_view = is_string($raw_view) ? sanitize_key(wp_unslash($raw_view)) : '';
 $context['recipe_view'] = in_array($raw_view, ['card', 'grid', 'list'], true) ? $raw_view : 'card';
 $context['recipe_view_links'] = [];
 foreach (['card', 'grid', 'list'] as $view) {
-  $context['recipe_view_links'][$view] = add_query_arg('view', $view, get_pagenum_link(1));
+  $context['recipe_view_links'][$view] = add_query_arg('view', $view, get_pagenum_link(1, false));
 }
 $current_page = max(1, (int) get_query_var('paged'));
 $context['recipe_next_page_url'] = $current_page < (int) ($GLOBALS['wp_query']->max_num_pages ?? 1)
-  ? get_pagenum_link($current_page + 1)
+  ? get_pagenum_link($current_page + 1, false)
   : '';
 $clear_filter_args = ['sort' => $context['recipe_sort'], 'view' => $context['recipe_view']];
 if ($context['search_query'] !== '') {
