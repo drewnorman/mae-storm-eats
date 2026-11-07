@@ -4,6 +4,25 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.8.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.7.0...v0.8.0) (2026-11-07)
+
+
+### Features
+
+* add occasion vibe and multi-ingredient filters ([2293cf5](https://github.com/drewnorman/mae-storm-eats/commit/2293cf5d476d3859ff2a58eae09d47476b47fcda))
+* add occasion, vibe, and multi-ingredient filters ([6f22f09](https://github.com/drewnorman/mae-storm-eats/commit/6f22f09f85a392f9990c87b135c3a4866e74fe15))
+* add recipe listing sort views and lazy loading ([713cef3](https://github.com/drewnorman/mae-storm-eats/commit/713cef366aa5a6776dc43ce79f50836293a1dacf))
+* add recipe sorting, views, and lazy loading ([77ba69d](https://github.com/drewnorman/mae-storm-eats/commit/77ba69d561b4081ce41eaacb7feeb89313c897cb))
+
+
+### Bug Fixes
+
+* group title and metadata in recipe list rows ([4efaf8d](https://github.com/drewnorman/mae-storm-eats/commit/4efaf8d21b51681f8b9c2a3c6f8b5a36c61474df))
+* improve recipe detail media and metadata ([8d6b4cf](https://github.com/drewnorman/mae-storm-eats/commit/8d6b4cfe646f1dcefa0a7fee889f0a95b3aee785))
+* preserve recipe filters in navigation links ([ceaf413](https://github.com/drewnorman/mae-storm-eats/commit/ceaf413fb31579eccb39e21d3634284bbb7a1215))
+* stabilize recipes missing total time in sort ([5c6889f](https://github.com/drewnorman/mae-storm-eats/commit/5c6889f8817ce66b3723c70b3b94618521ae4ba4))
+* **theme:** improve recipe detail media and metadata ([6dd6745](https://github.com/drewnorman/mae-storm-eats/commit/6dd6745dce047bcb39e5b1ab000c27e85eea200e))
+
 ## [0.7.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.6.0...v0.7.0) (2026-11-03)
 
 
