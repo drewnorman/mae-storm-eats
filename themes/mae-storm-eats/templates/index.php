@@ -29,9 +29,25 @@ $context['recipe_filter_selections_active'] = $context['more_filter_count'] > 0
 $context['recipe_filters_active'] = $context['search_query'] !== ''
   || $context['recipe_filter_selections_active'];
 $context['recipe_archive_url'] = get_post_type_archive_link(ContentTypes::POST_TYPE_RECIPE) ?: home_url('/');
-$context['recipe_clear_filters_url'] = $context['search_query'] === ''
-  ? $context['recipe_archive_url']
-  : add_query_arg('s', $context['search_query'], $context['recipe_archive_url']);
+$raw_sort = $_GET['sort'] ?? '';
+$raw_sort = is_string($raw_sort) ? sanitize_key(wp_unslash($raw_sort)) : '';
+$context['recipe_sort'] = in_array($raw_sort, ['recent', 'title', 'time', 'difficulty'], true) ? $raw_sort : 'recent';
+$raw_view = $_GET['view'] ?? '';
+$raw_view = is_string($raw_view) ? sanitize_key(wp_unslash($raw_view)) : '';
+$context['recipe_view'] = in_array($raw_view, ['card', 'grid', 'list'], true) ? $raw_view : 'card';
+$context['recipe_view_links'] = [];
+foreach (['card', 'grid', 'list'] as $view) {
+  $context['recipe_view_links'][$view] = add_query_arg('view', $view, get_pagenum_link(1, false));
+}
+$current_page = max(1, (int) get_query_var('paged'));
+$context['recipe_next_page_url'] = $current_page < (int) ($GLOBALS['wp_query']->max_num_pages ?? 1)
+  ? get_pagenum_link($current_page + 1, false)
+  : '';
+$clear_filter_args = ['sort' => $context['recipe_sort'], 'view' => $context['recipe_view']];
+if ($context['search_query'] !== '') {
+  $clear_filter_args['s'] = $context['search_query'];
+}
+$context['recipe_clear_filters_url'] = add_query_arg($clear_filter_args, $context['recipe_archive_url']);
 $context['ingredient_terms'] = RecipeView::terms(ContentTypes::TAXONOMY_INGREDIENT);
 $context['recipe_filters'] = [
   [

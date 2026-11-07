@@ -79,10 +79,27 @@
             <a class="recipe-filters__clear" href="{{ recipe_clear_filters_url }}">Clear filters</a>
           {% endif %}
         </div>
+        <div class="recipe-results-toolbar">
+          <label class="recipe-sort" for="recipe-sort">
+            <span>Sort by</span>
+            <select id="recipe-sort" class="filter-select" name="sort" data-filter-select>
+              <option value="recent" {{ recipe_sort == 'recent' ? 'selected' : '' }}>Recently added</option>
+              <option value="title" {{ recipe_sort == 'title' ? 'selected' : '' }}>Alphabetical A–Z</option>
+              <option value="time" {{ recipe_sort == 'time' ? 'selected' : '' }}>Shortest total time</option>
+              <option value="difficulty" {{ recipe_sort == 'difficulty' ? 'selected' : '' }}>Easiest first</option>
+            </select>
+          </label>
+          <input type="hidden" name="view" value="{{ recipe_view }}" data-recipe-view-input>
+          <nav class="recipe-view-switch" aria-label="Recipe view">
+            <a href="{{ recipe_view_links.card }}" data-recipe-view-link="card" {% if recipe_view == 'card' %}aria-current="page"{% endif %}>Card</a>
+            <a href="{{ recipe_view_links.grid }}" data-recipe-view-link="grid" {% if recipe_view == 'grid' %}aria-current="page"{% endif %}>Grid</a>
+            <a href="{{ recipe_view_links.list }}" data-recipe-view-link="list" {% if recipe_view == 'list' %}aria-current="page"{% endif %}>List</a>
+          </nav>
+        </div>
       </form>
     </div>
 
-    <div class="recipe-grid">
+    <div class="recipe-grid" data-recipe-results data-recipe-view="{{ recipe_view }}">
       {% for post in posts %}
         {% include "partials/recipe-card.twig" with { post: post } only %}
       {% else %}
@@ -91,5 +108,12 @@
         </div>
       {% endfor %}
     </div>
+    {% if recipe_next_page_url %}
+      <nav class="recipe-pagination" aria-label="More recipes" data-recipe-pagination>
+        <a href="{{ recipe_next_page_url }}" data-recipe-next-page>Load more recipes</a>
+      </nav>
+    {% endif %}
+    <p class="recipe-loading-status" role="status" aria-live="polite" data-recipe-loading-status></p>
+    <button class="recipe-loading-retry" type="button" data-recipe-loading-retry hidden>Retry loading recipes</button>
   </section>
 {% endblock %}

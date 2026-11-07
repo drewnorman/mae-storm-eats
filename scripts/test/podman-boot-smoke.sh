@@ -46,6 +46,10 @@ ingredient_check="$(cat "${script_dir}/ingredient-filter.php" | "${compose[@]}" 
 grep -Fq 'Ingredient index integration checks passed.' <<< "${ingredient_check}"
 echo "${ingredient_check}"
 
+listing_check="$(cat "${script_dir}/recipe-listing.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
+grep -Fq 'Recipe listing integration checks passed.' <<< "${listing_check}"
+echo "${listing_check}"
+
 private_access="$(cat "${script_dir}/private-access-settings.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
 grep -Fq 'Private access settings integration checks passed.' <<< "${private_access}"
 echo "${private_access}"
