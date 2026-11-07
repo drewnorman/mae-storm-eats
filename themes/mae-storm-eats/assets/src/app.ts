@@ -163,6 +163,10 @@ function bootFilterSelects(): void {
     "[data-recipe-filter-menu]",
   );
   const filterTrigger = filterMenu?.querySelector<HTMLElement>("summary");
+  const sortMenu = document.querySelector<HTMLDetailsElement>(
+    "[data-recipe-sort-menu]",
+  );
+  const sortTrigger = sortMenu?.querySelector<HTMLElement>("summary");
   filterMenu?.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       filterMenu.open = false;
@@ -173,10 +177,26 @@ function bootFilterSelects(): void {
     if (filterMenu?.open && !filterMenu.contains(event.target as Node)) {
       filterMenu.open = false;
     }
+    if (sortMenu?.open && !sortMenu.contains(event.target as Node)) {
+      sortMenu.open = false;
+    }
+  });
+  sortMenu?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      sortMenu.open = false;
+      sortTrigger?.focus();
+    }
+  });
+  sortMenu?.addEventListener("change", () => {
+    sortMenu.open = false;
+    sortTrigger?.focus();
   });
   document
     .querySelectorAll<HTMLFormElement>("[data-recipe-filters]")
     .forEach((form) => {
+      form
+        .querySelector<HTMLButtonElement>("[data-recipe-sort-apply]")
+        ?.setAttribute("hidden", "");
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         const destination = new URL(form.action);
@@ -185,6 +205,9 @@ function bootFilterSelects(): void {
           if (trimmed) {
             destination.searchParams.append(key, trimmed);
           }
+        }
+        if (!destination.searchParams.has("ingredient[]")) {
+          destination.searchParams.delete("ingredient_mode");
         }
         window.location.assign(destination.toString());
       });
@@ -358,7 +381,6 @@ function bootRecipeListing(): void {
       if (viewInput) viewInput.value = view;
       viewLinks.forEach((item) => {
         const selected = item.dataset.recipeViewLink === view;
-        item.hidden = selected;
         if (selected) {
           item.setAttribute("aria-current", "true");
         } else {
@@ -371,7 +393,7 @@ function bootRecipeListing(): void {
       }
       viewTrigger?.setAttribute(
         "aria-label",
-        `Current view: ${link.textContent?.trim() ?? view}. Change recipe view`,
+        `Current view: ${{ card: "Card", grid: "Grid", list: "List" }[view]}. Change recipe view`,
       );
       if (viewMenu) viewMenu.open = false;
       viewTrigger?.focus();

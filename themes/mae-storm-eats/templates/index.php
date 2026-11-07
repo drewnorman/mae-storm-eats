@@ -31,6 +31,12 @@ $context['recipe_archive_url'] = get_post_type_archive_link(ContentTypes::POST_T
 $raw_sort = $_GET['sort'] ?? '';
 $raw_sort = is_string($raw_sort) ? sanitize_key(wp_unslash($raw_sort)) : '';
 $context['recipe_sort'] = in_array($raw_sort, ['recent', 'title', 'time', 'difficulty'], true) ? $raw_sort : 'recent';
+$context['recipe_sort_names'] = [
+  'recent' => 'Recently added',
+  'title' => 'Alphabetical A–Z',
+  'time' => 'Shortest total time',
+  'difficulty' => 'Easiest first',
+];
 $raw_view = $_GET['view'] ?? '';
 $raw_view = is_string($raw_view) ? sanitize_key(wp_unslash($raw_view)) : '';
 $context['recipe_view'] = in_array($raw_view, ['card', 'grid', 'list'], true) ? $raw_view : 'card';
