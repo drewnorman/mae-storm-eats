@@ -264,7 +264,7 @@ add_filter('posts_orderby', function (string $orderby, \WP_Query $query): string
 
   if ($sort === 'time') {
     $minutes = "CAST({$value} AS UNSIGNED)";
-    return "CASE WHEN {$minutes} > 0 THEN 0 ELSE 1 END ASC, {$minutes} ASC, {$wpdb->posts}.post_title ASC, {$wpdb->posts}.ID DESC";
+    return "CASE WHEN {$minutes} > 0 THEN 0 ELSE 1 END ASC, CASE WHEN {$minutes} > 0 THEN {$minutes} ELSE 0 END ASC, {$wpdb->posts}.post_title ASC, {$wpdb->posts}.ID DESC";
   }
 
   $difficulty = "LOWER(TRIM({$value}))";
