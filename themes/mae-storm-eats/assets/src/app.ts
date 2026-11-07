@@ -159,6 +159,21 @@ function bootConversionCalculator(): void {
 }
 
 function bootFilterSelects(): void {
+  const filterMenu = document.querySelector<HTMLDetailsElement>(
+    "[data-recipe-filter-menu]",
+  );
+  const filterTrigger = filterMenu?.querySelector<HTMLElement>("summary");
+  filterMenu?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      filterMenu.open = false;
+      filterTrigger?.focus();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (filterMenu?.open && !filterMenu.contains(event.target as Node)) {
+      filterMenu.open = false;
+    }
+  });
   document
     .querySelectorAll<HTMLFormElement>("[data-recipe-filters]")
     .forEach((form) => {
@@ -175,11 +190,18 @@ function bootFilterSelects(): void {
       });
     });
   document
-    .querySelectorAll<HTMLSelectElement>("[data-filter-select]")
+    .querySelectorAll<HTMLSelectElement>(
+      "[data-recipe-filters] select[name]:not([multiple])",
+    )
     .forEach((select) => {
-      select.addEventListener("change", () => {
-        select.form?.requestSubmit();
-      });
+      select.addEventListener("change", () => select.form?.requestSubmit());
+    });
+  document
+    .querySelectorAll<HTMLInputElement>(
+      "[data-recipe-filters] input[type='radio']",
+    )
+    .forEach((radio) => {
+      radio.addEventListener("change", () => radio.form?.requestSubmit());
     });
 
   document
@@ -229,7 +251,7 @@ function bootFilterSelects(): void {
               option.selected = false;
               renderChips();
               feedback.textContent = `${option.text} removed`;
-              search.focus();
+              select.form?.requestSubmit();
             });
             chips.append(button);
           });
@@ -253,7 +275,7 @@ function bootFilterSelects(): void {
         search.value = "";
         renderChips();
         feedback.textContent = `${option.text} selected`;
-        search.focus();
+        select.form?.requestSubmit();
       };
 
       select.hidden = true;
@@ -261,6 +283,10 @@ function bootFilterSelects(): void {
         .querySelector<HTMLLabelElement>('label[for="ingredient-filter"]')
         ?.setAttribute("for", "ingredient-search");
       enhancement.hidden = false;
+      picker
+        .closest<HTMLFormElement>("form")
+        ?.querySelector<HTMLButtonElement>(".recipe-more__apply")
+        ?.setAttribute("hidden", "");
       renderChips();
       addButton.addEventListener("click", addIngredient);
       search.addEventListener("change", () => {
@@ -283,31 +309,6 @@ function bootFilterSelects(): void {
     });
 }
 
-function bootMobileSearch(): void {
-  const toggle = document.querySelector<HTMLButtonElement>(
-    "[data-mobile-search-toggle]",
-  );
-  const panel = document.querySelector<HTMLElement>(
-    "[data-mobile-search-panel]",
-  );
-
-  if (!toggle || !panel) {
-    return;
-  }
-
-  toggle.addEventListener("click", () => {
-    const open = toggle.getAttribute("aria-expanded") !== "true";
-    toggle.setAttribute("aria-expanded", String(open));
-    panel.classList.toggle("max-sm:hidden", !open);
-
-    if (open) {
-      panel.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
-    } else {
-      toggle.focus();
-    }
-  });
-}
-
 function bootRecipeListing(): void {
   const results = document.querySelector<HTMLElement>("[data-recipe-results]");
   if (!results) return;
@@ -317,6 +318,13 @@ function bootRecipeListing(): void {
   );
   const viewLinks = Array.from(
     document.querySelectorAll<HTMLAnchorElement>("[data-recipe-view-link]"),
+  );
+  const viewMenu = document.querySelector<HTMLDetailsElement>(
+    "[data-recipe-view-menu]",
+  );
+  const viewTrigger = viewMenu?.querySelector<HTMLElement>("summary");
+  const viewTriggerIcon = viewMenu?.querySelector<HTMLElement>(
+    "[data-recipe-view-trigger-icon]",
   );
   let currentView = results.dataset.recipeView ?? "card";
 
@@ -349,17 +357,41 @@ function bootRecipeListing(): void {
       results.dataset.recipeView = view;
       if (viewInput) viewInput.value = view;
       viewLinks.forEach((item) => {
-        if (item === link) {
-          item.setAttribute("aria-current", "page");
+        const selected = item.dataset.recipeViewLink === view;
+        item.hidden = selected;
+        if (selected) {
+          item.setAttribute("aria-current", "true");
         } else {
           item.removeAttribute("aria-current");
         }
       });
+      const icon = link.querySelector("svg");
+      if (icon && viewTriggerIcon) {
+        viewTriggerIcon.replaceChildren(icon.cloneNode(true));
+      }
+      viewTrigger?.setAttribute(
+        "aria-label",
+        `Current view: ${link.textContent?.trim() ?? view}. Change recipe view`,
+      );
+      if (viewMenu) viewMenu.open = false;
+      viewTrigger?.focus();
       const url = new URL(window.location.href);
       url.searchParams.set("view", view);
       window.history.replaceState(window.history.state, "", url);
       setNextLinkView();
     });
+  });
+
+  viewMenu?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      viewMenu.open = false;
+      viewTrigger?.focus();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (viewMenu?.open && !viewMenu.contains(event.target as Node)) {
+      viewMenu.open = false;
+    }
   });
 
   const pagination = document.querySelector<HTMLElement>(
@@ -514,7 +546,6 @@ function bootRecipeShell(): void {
   bootConversions();
   bootConversionCalculator();
   bootFilterSelects();
-  bootMobileSearch();
   bootRecipeListing();
   bootRecipeGalleries();
 }

@@ -69,10 +69,6 @@
     @apply inline-flex bg-olive px-7 py-4 text-lg text-white transition hover:bg-plum;
   }
 
-  .mobile-search-trigger {
-    @apply mb-5 h-[3.35rem] w-full bg-olive text-xl uppercase text-white transition hover:bg-plum sm:hidden;
-  }
-
   .recipe-search {
     @apply grid grid-cols-[minmax(0,1fr)_7rem] sm:grid-cols-[minmax(0,1fr)_13.25rem];
   }
@@ -86,11 +82,7 @@
   }
 
   .recipe-filters {
-    @apply mt-8 grid gap-3 sm:grid-cols-[auto_repeat(2,minmax(0,1fr))] sm:items-center lg:grid-cols-[auto_repeat(2,minmax(9.5rem,1fr))];
-  }
-
-  .recipe-filters__label {
-    @apply text-xl uppercase sm:text-2xl;
+    @apply mt-6;
   }
 
   .filter-select {
@@ -98,19 +90,28 @@
   }
 
   .recipe-filters__clear {
-    @apply text-sm text-olive underline hover:text-plum sm:col-start-2;
+    @apply self-center text-sm text-olive underline hover:text-plum;
   }
 
   .recipe-more {
-    @apply col-span-full;
+    @apply shrink-0;
   }
 
   .recipe-more__summary {
-    @apply inline-flex min-h-12 cursor-pointer items-center border-b-4 border-plum bg-white px-5 py-2 text-lg text-olive;
+    @apply inline-flex min-h-12 cursor-pointer items-center border-2 border-plum bg-white px-4 py-2 text-base text-olive transition hover:bg-cream;
+    list-style: none;
+  }
+
+  .recipe-more__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .recipe-more[open] .recipe-more__summary {
+    @apply bg-cream;
   }
 
   .recipe-more__panel {
-    @apply mt-3 border-2 border-coral bg-cream p-4 sm:p-6;
+    @apply absolute left-0 top-full z-20 mt-2 max-h-[min(70vh,36rem)] w-[min(34rem,calc(100vw-2rem))] overflow-y-auto border-2 border-coral bg-cream p-4 shadow-xl sm:p-6;
   }
 
   .recipe-more__fields {
@@ -170,12 +171,20 @@
     @apply mt-5;
   }
 
+  .recipe-more__apply[hidden] {
+    display: none;
+  }
+
   .recipe-results-toolbar {
-    @apply mt-7 flex flex-wrap items-end justify-between gap-5;
+    @apply relative mt-7 flex flex-wrap items-end gap-3 sm:gap-4;
+  }
+
+  .recipe-results-count {
+    @apply w-full text-base text-olive sm:mr-auto sm:w-auto;
   }
 
   .recipe-sort {
-    @apply grid w-full gap-1 text-base text-olive sm:w-72;
+    @apply grid min-w-0 flex-1 gap-1 text-base text-olive sm:w-64 sm:flex-none;
   }
 
   .recipe-sort .filter-select {
@@ -183,15 +192,48 @@
   }
 
   .recipe-view-switch {
-    @apply inline-flex border-2 border-plum bg-white;
+    @apply relative shrink-0;
   }
 
-  .recipe-view-switch a {
-    @apply px-4 py-2.5 text-base text-olive transition hover:bg-cream;
+  .recipe-view-switch__trigger {
+    @apply grid h-12 w-12 cursor-pointer place-items-center border-2 border-plum bg-white text-olive transition hover:bg-cream;
+    list-style: none;
   }
 
-  .recipe-view-switch a[aria-current="page"] {
-    @apply bg-plum text-white;
+  .recipe-view-switch__trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .recipe-view-switch[open] .recipe-view-switch__trigger {
+    @apply bg-cream;
+  }
+
+  .recipe-view-switch__menu {
+    @apply absolute right-0 top-full z-20 mt-2 min-w-36 border-2 border-plum bg-white py-1 shadow-xl;
+  }
+
+  .recipe-view-switch__option {
+    @apply flex min-h-11 items-center gap-3 px-3 py-2 text-base text-olive transition hover:bg-cream;
+  }
+
+  .recipe-view-switch__option[hidden] {
+    display: none;
+  }
+
+  .recipe-view-switch__icon {
+    @apply h-5 w-5 shrink-0;
+  }
+
+  .recipe-filter-chips {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .recipe-filter-chips[hidden] {
+    display: none;
+  }
+
+  .recipe-filter-chip {
+    @apply inline-flex min-h-10 items-center border border-plum bg-white px-3 py-1.5 text-sm text-olive transition hover:bg-plum hover:text-white;
   }
 
   .recipe-grid {
@@ -245,6 +287,10 @@
     @apply transition hover:text-plum;
   }
 
+  .recipe-card__list-details {
+    display: none;
+  }
+
   .recipe-grid[data-recipe-view="grid"] {
     @apply gap-x-5 gap-y-8 lg:grid-cols-4;
   }
@@ -262,7 +308,7 @@
   }
 
   .recipe-grid[data-recipe-view="list"] .recipe-card {
-    @apply grid grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)] items-center gap-4 bg-white p-3 text-left sm:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)];
+    @apply grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 bg-white p-3 text-left sm:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)] sm:gap-5;
   }
 
   .recipe-grid[data-recipe-view="list"] .recipe-card__info {
@@ -280,6 +326,22 @@
 
   .recipe-grid[data-recipe-view="list"] .recipe-card__title {
     @apply mt-0 px-0 text-xl sm:text-3xl;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__list-details {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__list-details-item {
+    @apply inline-flex items-baseline gap-1 bg-cream px-2 py-1 text-xs text-olive sm:text-sm;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__list-details-item dt {
+    @apply font-bold;
+  }
+
+  .recipe-grid[data-recipe-view="list"] .recipe-card__list-details-item dd {
+    @apply m-0 min-w-0 break-words;
   }
 
   .recipe-pagination {

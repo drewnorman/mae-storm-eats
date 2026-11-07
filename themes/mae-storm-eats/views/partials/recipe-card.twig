@@ -11,5 +11,32 @@
       <a href="{{ post.link }}">{{ post.title }}</a>
     </h2>
     {% include "partials/recipe-meta.twig" with { post: post } only %}
+    {% set course_terms = post.terms|filter(term => term.taxonomy == 'recipe_course') %}
+    {% set cuisine_terms = post.terms|filter(term => term.taxonomy == 'recipe_cuisine') %}
+    {% set difficulty = post.meta('_mae_storm_eats_recipe_difficulty') %}
+    <dl class="recipe-card__list-details">
+      <div class="recipe-card__list-details-item">
+        <dt>Added</dt>
+        <dd><time datetime="{{ post.date('Y-m-d') }}">{{ post.date('M j, Y') }}</time></dd>
+      </div>
+      {% if course_terms %}
+        <div class="recipe-card__list-details-item">
+          <dt>Course</dt>
+          <dd>{% for term in course_terms %}{{ term.name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+        </div>
+      {% endif %}
+      {% if cuisine_terms %}
+        <div class="recipe-card__list-details-item">
+          <dt>Cuisine</dt>
+          <dd>{% for term in cuisine_terms %}{{ term.name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+        </div>
+      {% endif %}
+      {% if difficulty %}
+        <div class="recipe-card__list-details-item">
+          <dt>Difficulty</dt>
+          <dd>{{ difficulty|capitalize }}</dd>
+        </div>
+      {% endif %}
+    </dl>
   </div>
 </article>
