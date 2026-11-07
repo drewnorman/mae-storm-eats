@@ -4,6 +4,17 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.9.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.8.0...v0.9.0) (2026-11-07)
+
+
+### Features
+
+* streamline recipe listing controls and list view ([5e964a4](https://github.com/drewnorman/mae-storm-eats/commit/5e964a43fc295c04229a2b18a5323f3850a53762))
+* streamline recipe listing controls and list view ([46a243f](https://github.com/drewnorman/mae-storm-eats/commit/46a243f38e90833867a6c5e4f2079bd323680ae0))
+* unify recipe listing menus ([a2feeba](https://github.com/drewnorman/mae-storm-eats/commit/a2feebae242649c6630c74b9644e8afc9a3b7343))
+* update recipe listings through WordPress REST ([8016948](https://github.com/drewnorman/mae-storm-eats/commit/80169482d8616bb66ccd7fc17451fd9dc8b9aed5))
+* update recipe listings through WordPress REST ([2c95675](https://github.com/drewnorman/mae-storm-eats/commit/2c95675211ead2df7d38cfcf2f3b6c11a0e09a90))
+
 ## [0.8.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.7.0...v0.8.0) (2026-11-07)
 
 
