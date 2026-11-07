@@ -27,6 +27,25 @@ $course = wp_insert_term('Ingredient filter test course', ContentTypes::TAXONOMY
 if (is_wp_error($course)) {
     throw new RuntimeException($course->get_error_message());
 }
+$occasion = wp_insert_term('Ingredient filter test occasion', ContentTypes::TAXONOMY_OCCASION);
+$vibe = wp_insert_term('Ingredient filter test vibe', ContentTypes::TAXONOMY_VIBE);
+if (is_wp_error($occasion) || is_wp_error($vibe)) {
+    throw new RuntimeException('Could not create filter taxonomy terms.');
+}
+
+function recipe_filter_ids(array $post_ids, array $selected): array
+{
+    $results = new WP_Query([
+        'post_type' => ContentTypes::POST_TYPE_RECIPE,
+        'post__in' => $post_ids,
+        'posts_per_page' => -1,
+        'tax_query' => mae_storm_eats_recipe_tax_query($selected),
+    ]);
+    $ids = array_map('intval', wp_list_pluck($results->posts, 'ID'));
+    sort($ids);
+
+    return $ids;
+}
 
 try {
     foreach (['Test squash fritters', 'Test cornbread'] as $title) {
@@ -90,11 +109,70 @@ try {
         ],
     ]);
     expect_ingredients(array_map('intval', wp_list_pluck($results->posts, 'ID')), [$post_ids[0]], 'Combined filter failed');
+
+    $third_id = wp_insert_post([
+        'post_type' => ContentTypes::POST_TYPE_RECIPE,
+        'post_status' => 'publish',
+        'post_title' => 'Test flour bread',
+    ], true);
+    if (is_wp_error($third_id)) {
+        throw new RuntimeException($third_id->get_error_message());
+    }
+    $post_ids[] = (int) $third_id;
+    update_post_meta($third_id, RecipeMeta::META_STRUCTURED_DATA, [
+        'ingredients' => ['2 cups flour'],
+    ]);
+    wp_set_object_terms($post_ids[0], (int) $occasion['term_id'], ContentTypes::TAXONOMY_OCCASION);
+    wp_set_object_terms($post_ids[0], (int) $vibe['term_id'], ContentTypes::TAXONOMY_VIBE);
+
+    $selected = [
+        'course' => '',
+        'cuisine' => '',
+        'occasion' => '',
+        'vibe' => '',
+        'ingredient' => ['egg', 'flour'],
+        'ingredient_mode' => 'any',
+    ];
+    $expected_any = [$post_ids[0], $post_ids[2]];
+    sort($expected_any);
+    expect_ingredients(recipe_filter_ids($post_ids, $selected), $expected_any, 'Any ingredient matching failed');
+
+    $selected['ingredient_mode'] = 'all';
+    expect_ingredients(recipe_filter_ids($post_ids, $selected), [$post_ids[0]], 'All ingredient matching failed');
+
+    $selected['ingredient_mode'] = 'any';
+    $selected['course'] = get_term((int) $course['term_id'])->slug;
+    $selected['occasion'] = get_term((int) $occasion['term_id'])->slug;
+    $selected['vibe'] = get_term((int) $vibe['term_id'])->slug;
+    expect_ingredients(recipe_filter_ids($post_ids, $selected), [$post_ids[0]], 'Combined taxonomy filters failed');
+
+    $selected['occasion'] = 'term-that-does-not-exist';
+    expect_ingredients(recipe_filter_ids($post_ids, $selected), [], 'Unknown taxonomy term broadened results');
+
+    $selected['occasion'] = '';
+    $selected['vibe'] = '';
+    $selected['course'] = '';
+    $selected['ingredient'] = ['term-that-does-not-exist'];
+    expect_ingredients(recipe_filter_ids($post_ids, $selected), [], 'Unknown ingredient broadened results');
+
+    $_GET['ingredient'] = 'egg';
+    unset($_GET['ingredient_mode']);
+    $parsed = mae_storm_eats_selected_recipe_filters();
+    expect_ingredients($parsed['ingredient'], ['egg'], 'Legacy ingredient link was not recognized');
+    expect_ingredients($parsed['ingredient_mode'], 'any', 'Default ingredient mode changed');
+    $_GET['ingredient'] = ['egg', 'flour'];
+    $_GET['ingredient_mode'] = 'all';
+    $parsed = mae_storm_eats_selected_recipe_filters();
+    expect_ingredients($parsed['ingredient'], ['egg', 'flour'], 'Multiple ingredient links were not recognized');
+    expect_ingredients($parsed['ingredient_mode'], 'all', 'All ingredient mode was not recognized');
 } finally {
+    unset($_GET['ingredient'], $_GET['ingredient_mode']);
     foreach ($post_ids as $post_id) {
         wp_delete_post($post_id, true);
     }
     wp_delete_term((int) $course['term_id'], ContentTypes::TAXONOMY_COURSE);
+    wp_delete_term((int) $occasion['term_id'], ContentTypes::TAXONOMY_OCCASION);
+    wp_delete_term((int) $vibe['term_id'], ContentTypes::TAXONOMY_VIBE);
 }
 
 echo "Ingredient index integration checks passed.\n";

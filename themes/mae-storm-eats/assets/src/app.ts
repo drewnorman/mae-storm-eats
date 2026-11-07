@@ -168,7 +168,7 @@ function bootFilterSelects(): void {
         for (const [key, value] of new FormData(form).entries()) {
           const trimmed = String(value).trim();
           if (trimmed) {
-            destination.searchParams.set(key, trimmed);
+            destination.searchParams.append(key, trimmed);
           }
         }
         window.location.assign(destination.toString());
@@ -181,17 +181,103 @@ function bootFilterSelects(): void {
         select.form?.requestSubmit();
       });
     });
+
   document
-    .querySelectorAll<HTMLInputElement>("[data-ingredient-filter]")
-    .forEach((input) => {
-      input.addEventListener("change", () => {
-        const choices = Array.from(
-          document.querySelectorAll<HTMLOptionElement>(
-            "#ingredient-options option",
-          ),
+    .querySelectorAll<HTMLElement>("[data-ingredient-picker]")
+    .forEach((picker) => {
+      const select = picker.querySelector<HTMLSelectElement>(
+        "[data-ingredient-select]",
+      );
+      const enhancement = picker.querySelector<HTMLElement>(
+        "[data-ingredient-enhancement]",
+      );
+      const search = picker.querySelector<HTMLInputElement>(
+        "[data-ingredient-search]",
+      );
+      const addButton = picker.querySelector<HTMLButtonElement>(
+        "[data-ingredient-add]",
+      );
+      const chips = picker.querySelector<HTMLElement>(
+        "[data-ingredient-chips]",
+      );
+      const feedback = picker.querySelector<HTMLElement>(
+        "[data-ingredient-feedback]",
+      );
+
+      if (
+        !select ||
+        !enhancement ||
+        !search ||
+        !addButton ||
+        !chips ||
+        !feedback
+      ) {
+        return;
+      }
+
+      const options = Array.from(select.options);
+      const renderChips = (): void => {
+        chips.replaceChildren();
+        options
+          .filter((option) => option.selected)
+          .forEach((option) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = `${option.text} ×`;
+            button.setAttribute("aria-label", `Remove ${option.text}`);
+            button.addEventListener("click", () => {
+              option.selected = false;
+              renderChips();
+              feedback.textContent = `${option.text} removed`;
+              search.focus();
+            });
+            chips.append(button);
+          });
+      };
+
+      const addIngredient = (): void => {
+        const name = search.value.trim().toLocaleLowerCase();
+        if (!name) {
+          return;
+        }
+
+        const option = options.find(
+          (candidate) => candidate.text.trim().toLocaleLowerCase() === name,
         );
-        if (choices.some((option) => option.value === input.value)) {
-          input.form?.requestSubmit();
+        if (!option) {
+          feedback.textContent = "Choose an ingredient from the suggestions.";
+          return;
+        }
+
+        option.selected = true;
+        search.value = "";
+        renderChips();
+        feedback.textContent = `${option.text} selected`;
+        search.focus();
+      };
+
+      select.hidden = true;
+      picker
+        .querySelector<HTMLLabelElement>('label[for="ingredient-filter"]')
+        ?.setAttribute("for", "ingredient-search");
+      enhancement.hidden = false;
+      renderChips();
+      addButton.addEventListener("click", addIngredient);
+      search.addEventListener("change", () => {
+        if (
+          options.some(
+            (option) =>
+              option.text.trim().toLocaleLowerCase() ===
+              search.value.trim().toLocaleLowerCase(),
+          )
+        ) {
+          addIngredient();
+        }
+      });
+      search.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addIngredient();
         }
       });
     });

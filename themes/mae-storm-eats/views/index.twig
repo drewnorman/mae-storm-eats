@@ -29,13 +29,54 @@
               {% endfor %}
             </select>
           {% endfor %}
-          <label class="sr-only" for="ingredient-filter">Ingredient Selection</label>
-          <input id="ingredient-filter" class="filter-select" type="search" name="ingredient" value="{{ selected_filters.ingredient }}" list="ingredient-options" placeholder="Ingredient Selection" autocomplete="off" data-ingredient-filter>
-          <datalist id="ingredient-options">
-            {% for term in ingredient_terms %}<option value="{{ term.name }}"></option>{% endfor %}
-          </datalist>
-          {% if recipe_filters_active %}
-            <a class="recipe-filters__clear" href="{{ recipe_archive_url }}">Clear filters</a>
+          <details class="recipe-more" {{ more_filter_count ? 'open' : '' }}>
+            <summary class="recipe-more__summary">More filters{% if more_filter_count %} ({{ more_filter_count }}){% endif %}</summary>
+            <div class="recipe-more__panel">
+              <div class="recipe-more__fields">
+                {% for filter in more_recipe_filters %}
+                  <div>
+                    <label class="recipe-more__label" for="recipe-more-{{ filter.parameter }}">{{ filter.label }}</label>
+                    <select id="recipe-more-{{ filter.parameter }}" class="filter-select" name="{{ filter.parameter }}">
+                      <option value="">Any {{ filter.label|lower }}</option>
+                      {% for term in filter.terms %}
+                        <option value="{{ term.slug }}" {{ selected_filters[filter.parameter] == term.slug ? 'selected' : '' }}>{{ term.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="recipe-more__ingredients" data-ingredient-picker>
+                <label class="recipe-more__label" for="ingredient-filter">Ingredients</label>
+                <select id="ingredient-filter" class="recipe-more__ingredient-select" name="ingredient[]" multiple size="6" data-ingredient-select>
+                  {% for term in ingredient_terms %}
+                    <option value="{{ term.slug }}" {{ term.slug in selected_filters.ingredient ? 'selected' : '' }}>{{ term.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="recipe-more__ingredient-enhancement" data-ingredient-enhancement hidden>
+                  <div class="recipe-more__ingredient-entry">
+                    <label class="sr-only" for="ingredient-search">Search ingredients to add</label>
+                    <input id="ingredient-search" class="filter-select" type="search" list="ingredient-options" placeholder="Search ingredients" autocomplete="off" data-ingredient-search>
+                    <button type="button" data-ingredient-add>Add</button>
+                  </div>
+                  <datalist id="ingredient-options">
+                    {% for term in ingredient_terms %}<option value="{{ term.name }}"></option>{% endfor %}
+                  </datalist>
+                  <div class="recipe-more__ingredient-chips" data-ingredient-chips></div>
+                  <p class="recipe-more__ingredient-feedback" data-ingredient-feedback aria-live="polite"></p>
+                </div>
+              </div>
+
+              <fieldset class="recipe-more__match">
+                <legend class="recipe-more__label">Match selected ingredients</legend>
+                <label><input type="radio" name="ingredient_mode" value="any" {{ selected_filters.ingredient_mode == 'any' ? 'checked' : '' }}> Any</label>
+                <label><input type="radio" name="ingredient_mode" value="all" {{ selected_filters.ingredient_mode == 'all' ? 'checked' : '' }}> All</label>
+              </fieldset>
+              <button class="recipe-more__apply" type="submit">Apply filters</button>
+            </div>
+          </details>
+          {% if recipe_filter_selections_active %}
+            <a class="recipe-filters__clear" href="{{ recipe_clear_filters_url }}">Clear filters</a>
           {% endif %}
         </div>
       </form>

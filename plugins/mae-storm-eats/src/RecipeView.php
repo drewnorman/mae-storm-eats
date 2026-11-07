@@ -113,7 +113,8 @@ final class RecipeView
         foreach ([
             ContentTypes::TAXONOMY_COURSE,
             ContentTypes::TAXONOMY_CUISINE,
-            ContentTypes::TAXONOMY_DIET,
+            ContentTypes::TAXONOMY_OCCASION,
+            ContentTypes::TAXONOMY_VIBE,
         ] as $taxonomy) {
             $term_ids = array_map(
                 static fn (Term $term): int => $term->ID,

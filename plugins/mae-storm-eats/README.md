@@ -5,7 +5,7 @@ First-party WordPress plugin for the private eats.maestorm.com recipe app.
 ## Current Behavior
 
 - Registers the `recipe` custom post type.
-- Registers recipe taxonomies for cuisine, course, diet, and recipe tags.
+- Registers recipe taxonomies for cuisine, course, occasion, vibe, and recipe tags.
 - Registers typed recipe meta placeholders for:
   - source URLs and Pinterest URLs
   - canonical Pinterest pin IDs

@@ -76,7 +76,8 @@ final class RestProtection implements ServiceProviderInterface
             || str_starts_with($route, '/wp/v2/recipe-reviews')
             || str_starts_with($route, '/wp/v2/cuisines')
             || str_starts_with($route, '/wp/v2/courses')
-            || str_starts_with($route, '/wp/v2/diets')
+            || str_starts_with($route, '/wp/v2/occasions')
+            || str_starts_with($route, '/wp/v2/vibes')
             || str_starts_with($route, '/wp/v2/recipe-tags');
     }
 }
