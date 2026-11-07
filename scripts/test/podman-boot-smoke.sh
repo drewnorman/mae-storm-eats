@@ -50,6 +50,10 @@ listing_check="$(cat "${script_dir}/recipe-listing.php" | "${compose[@]}" exec -
 grep -Fq 'Recipe listing integration checks passed.' <<< "${listing_check}"
 echo "${listing_check}"
 
+listing_rest_check="$(cat "${script_dir}/recipe-listing-rest.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
+grep -Fq 'Recipe listing REST integration checks passed.' <<< "${listing_rest_check}"
+echo "${listing_rest_check}"
+
 private_access="$(cat "${script_dir}/private-access-settings.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
 grep -Fq 'Private access settings integration checks passed.' <<< "${private_access}"
 echo "${private_access}"

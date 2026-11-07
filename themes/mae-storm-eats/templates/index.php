@@ -97,6 +97,11 @@ foreach ($context['selected_filters']['ingredient'] as $slug) {
   ];
 }
 $context['recipe_total_results'] = (int) ($GLOBALS['wp_query']->found_posts ?? 0);
+$context['recipe_current_page'] = $current_page;
+$context['recipe_total_pages'] = (int) ($GLOBALS['wp_query']->max_num_pages ?? 1);
+$context['recipe_ajax_url'] = is_post_type_archive(ContentTypes::POST_TYPE_RECIPE) || is_search() || is_home()
+  ? rest_url('mae-storm-eats/v1/recipe-list')
+  : '';
 $context['ingredient_terms'] = RecipeView::terms(ContentTypes::TAXONOMY_INGREDIENT);
 $context['recipe_filters'] = [
   [

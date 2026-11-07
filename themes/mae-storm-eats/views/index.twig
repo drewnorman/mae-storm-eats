@@ -3,16 +3,14 @@
 {% block content %}
   <section class="page-shell pb-20">
     <div class="search-panel">
-      <form method="get" action="{{ recipe_archive_url }}" role="search" data-recipe-filters>
+      <form method="get" action="{{ recipe_archive_url }}" role="search" data-recipe-filters{% if recipe_ajax_url %} data-recipe-ajax-endpoint="{{ recipe_ajax_url }}"{% endif %}>
         <div class="recipe-search">
           <label class="sr-only" for="recipe-search">Search recipes</label>
           <input id="recipe-search" class="recipe-search__input" type="search" name="s" value="{{ search_query }}" placeholder="Spicy Braised Tofu">
           <button class="recipe-search__submit" type="submit">Search</button>
         </div>
 
-        {% if search_query %}
-          <p class="mt-3 text-lg">Results for “{{ search_query }}”</p>
-        {% endif %}
+        <p class="mt-3 text-lg" data-recipe-search-summary{% if not search_query %} hidden{% endif %}>Results for “{{ search_query }}”</p>
 
         <div class="recipe-results-toolbar">
           <p class="recipe-results-count" data-recipe-results-count>{{ recipe_total_results }} {{ recipe_total_results == 1 ? 'recipe' : 'recipes' }}</p>
@@ -131,7 +129,7 @@
       </form>
     </div>
 
-    <div class="recipe-grid" data-recipe-results data-recipe-view="{{ recipe_view }}">
+    <div class="recipe-grid" data-recipe-results data-recipe-view="{{ recipe_view }}" data-recipe-page="{{ recipe_current_page }}" data-recipe-pages="{{ recipe_total_pages }}">
       {% for post in posts %}
         {% include "partials/recipe-card.twig" with { post: post } only %}
       {% else %}
@@ -140,11 +138,9 @@
         </div>
       {% endfor %}
     </div>
-    {% if recipe_next_page_url %}
-      <nav class="recipe-pagination" aria-label="More recipes" data-recipe-pagination>
-        <a href="{{ recipe_next_page_url }}" data-recipe-next-page>Load more recipes</a>
-      </nav>
-    {% endif %}
+    <nav class="recipe-pagination" aria-label="More recipes" data-recipe-pagination{% if not recipe_next_page_url %} hidden{% endif %}>
+      <a href="{{ recipe_next_page_url ?: recipe_archive_url }}" data-recipe-next-page>Load more recipes</a>
+    </nav>
     <p class="recipe-loading-status" role="status" aria-live="polite" data-recipe-loading-status></p>
     <button class="recipe-loading-retry" type="button" data-recipe-loading-retry hidden>Retry loading recipes</button>
   </section>

@@ -72,7 +72,8 @@ final class RestProtection implements ServiceProviderInterface
 
     private function isRecipeRoute(string $route): bool
     {
-        return str_starts_with($route, '/wp/v2/recipes')
+        return $route === '/mae-storm-eats/v1/recipe-list'
+            || str_starts_with($route, '/wp/v2/recipes')
             || str_starts_with($route, '/wp/v2/recipe-reviews')
             || str_starts_with($route, '/wp/v2/cuisines')
             || str_starts_with($route, '/wp/v2/courses')
