@@ -4,6 +4,14 @@ All notable changes to the backend, theme, plugin, and private Firefox extension
 are documented here. These components share one version and must be used from
 the same release tag.
 
+## [0.10.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.9.0...v0.10.0) (2026-11-08)
+
+
+### Features
+
+* add ordered related recipes ([096d477](https://github.com/drewnorman/mae-storm-eats/commit/096d47729b046670a6d44bdeafef6782165edeb6))
+* add ordered related recipes ([b2e0b5c](https://github.com/drewnorman/mae-storm-eats/commit/b2e0b5c6c2168e05ca9cb80d031b11cc7783a4e2))
+
 ## [0.9.0](https://github.com/drewnorman/mae-storm-eats/compare/v0.8.0...v0.9.0) (2026-11-07)
 
 
