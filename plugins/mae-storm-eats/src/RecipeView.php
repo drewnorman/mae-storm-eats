@@ -108,6 +108,31 @@ final class RecipeView
             return [];
         }
 
+        $selected_ids = RelatedRecipes::selectedIds($recipe->ID);
+        $related = [];
+        if ($selected_ids !== []) {
+            $selected = self::postList([
+                'post_type' => ContentTypes::POST_TYPE_RECIPE,
+                'post_status' => 'publish',
+                'posts_per_page' => count($selected_ids),
+                'post__in' => $selected_ids,
+                'orderby' => 'post__in',
+            ]);
+            $by_id = [];
+            foreach ($selected as $post) {
+                $by_id[$post->ID] = $post;
+            }
+            foreach ($selected_ids as $id) {
+                if (isset($by_id[$id])) {
+                    $related[] = $by_id[$id];
+                }
+            }
+        }
+
+        if (count($related) >= $limit) {
+            return $related;
+        }
+
         $tax_query = ['relation' => 'OR'];
 
         foreach ([
@@ -130,18 +155,19 @@ final class RecipeView
             }
         }
 
-        $related = [];
+        $related_ids = array_map(static fn (Post $post): int => $post->ID, $related);
 
         if (count($tax_query) > 1) {
-            $related = self::postList([
+            $matches = self::postList([
                 'post_type' => ContentTypes::POST_TYPE_RECIPE,
                 'post_status' => 'publish',
-                'posts_per_page' => $limit,
-                'post__not_in' => [$recipe->ID],
+                'posts_per_page' => $limit - count($related),
+                'post__not_in' => array_merge([$recipe->ID], $related_ids),
                 'orderby' => 'date',
                 'order' => 'DESC',
                 'tax_query' => $tax_query,
             ]);
+            $related = array_merge($related, $matches);
         }
 
         $related_ids = array_map(static fn (Post $post): int => $post->ID, $related);
@@ -158,7 +184,7 @@ final class RecipeView
             $related = array_merge($related, $fallback);
         }
 
-        return array_slice($related, 0, $limit);
+        return $related;
     }
 
     /**

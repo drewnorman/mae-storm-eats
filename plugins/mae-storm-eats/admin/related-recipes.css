@@ -1,0 +1,41 @@
+.mae-related-recipes__results,
+.mae-related-recipes__selected {
+  margin: 12px 0 0;
+}
+
+.mae-related-recipes__results[hidden] {
+  display: none;
+}
+
+.mae-related-recipes__results li {
+  margin: 0 0 6px;
+}
+
+.mae-related-recipes__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #c3c4c7;
+  background: #fff;
+}
+
+.mae-related-recipes__title {
+  font-weight: 600;
+}
+
+.mae-related-recipes__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mae-related-recipes__drag {
+  cursor: move;
+}
+
+.mae-related-recipes__actions .dashicons {
+  vertical-align: middle;
+}

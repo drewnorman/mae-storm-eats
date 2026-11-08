@@ -50,6 +50,10 @@ listing_check="$(cat "${script_dir}/recipe-listing.php" | "${compose[@]}" exec -
 grep -Fq 'Recipe listing integration checks passed.' <<< "${listing_check}"
 echo "${listing_check}"
 
+related_check="$(cat "${script_dir}/related-recipes.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
+grep -Fq 'Related recipe integration checks passed.' <<< "${related_check}"
+echo "${related_check}"
+
 listing_rest_check="$(cat "${script_dir}/recipe-listing-rest.php" | "${compose[@]}" exec -T wordpress php /dev/stdin)"
 grep -Fq 'Recipe listing REST integration checks passed.' <<< "${listing_rest_check}"
 echo "${listing_rest_check}"

@@ -23,6 +23,7 @@ final class Plugin
             new ContentTypes(),
             new RecipeMeta(),
             new RecipeGallery(),
+            new RelatedRecipes(),
             new HeicUploadConverter(),
             new IngredientIndex(),
             new ReviewMeta(),
